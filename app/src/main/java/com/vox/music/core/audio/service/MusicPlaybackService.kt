@@ -1,7 +1,12 @@
 package com.vox.music.core.audio.service
 
+import android.app.KeyguardManager
 import android.app.PendingIntent
+import android.content.BroadcastReceiver
+import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
+import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -27,6 +32,7 @@ import com.google.common.util.concurrent.ListenableFuture
 import com.vox.music.MainActivity
 import com.vox.music.core.audio.dsp.SonicAudioProcessorHolder
 import com.vox.music.core.audio.equalizer.EqualizerController
+import com.vox.music.feature.lockscreen.LockscreenPlayerActivity
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
 
@@ -42,6 +48,7 @@ class MusicPlaybackService : MediaSessionService() {
 
     private var player: ExoPlayer? = null
     private var mediaSession: MediaSession? = null
+    private var screenStateReceiver: BroadcastReceiver? = null
 
     // A-B Looping Points (in milliseconds)
     var pointA: Long? = null
@@ -93,6 +100,41 @@ class MusicPlaybackService : MediaSessionService() {
     override fun onCreate() {
         super.onCreate()
         initializePlayer()
+        registerScreenReceiver()
+    }
+
+    private fun registerScreenReceiver() {
+        val filter = IntentFilter().apply {
+            addAction(Intent.ACTION_SCREEN_ON)
+        }
+        screenStateReceiver = object : BroadcastReceiver() {
+            override fun onReceive(context: Context, intent: Intent) {
+                if (intent.action == Intent.ACTION_SCREEN_ON) {
+                    checkAndLaunchLockscreenPlayer(context)
+                }
+            }
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            registerReceiver(screenStateReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
+        } else {
+            registerReceiver(screenStateReceiver, filter)
+        }
+    }
+
+    private fun checkAndLaunchLockscreenPlayer(context: Context) {
+        val p = player ?: return
+        if (!p.isPlaying) return
+        val prefs = context.getSharedPreferences("vox_prefs", Context.MODE_PRIVATE)
+        val isEnabled = prefs.getBoolean("lockscreen_player_enabled", true)
+        if (!isEnabled) return
+
+        val keyguardManager = context.getSystemService(Context.KEYGUARD_SERVICE) as? KeyguardManager
+        if (keyguardManager?.isKeyguardLocked == true) {
+            val lockIntent = Intent(context, LockscreenPlayerActivity::class.java).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+            }
+            context.startActivity(lockIntent)
+        }
     }
 
     private fun initializePlayer() {
@@ -247,6 +289,10 @@ class MusicPlaybackService : MediaSessionService() {
     }
 
     override fun onDestroy() {
+        screenStateReceiver?.let {
+            unregisterReceiver(it)
+            screenStateReceiver = null
+        }
         handler.removeCallbacks(abLoopRunnable)
         equalizerController.release()
         mediaSession?.run {

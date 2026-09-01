@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -123,6 +124,7 @@ fun PlayerScreen(
     val context = LocalContext.current
     val prefs = remember(context) { context.getSharedPreferences("vox_prefs", Context.MODE_PRIVATE) }
     val dynamicBackgroundEnabled = remember(prefs) { prefs.getBoolean("dynamic_background_enabled", true) }
+    val dynamicBgIntensity = remember(prefs) { prefs.getFloat("dynamic_background_intensity", 0.22f) }
     var dominantColor by remember { mutableStateOf<Color?>(null) }
 
     LaunchedEffect(track.filePath, dynamicBackgroundEnabled) {
@@ -188,12 +190,14 @@ fun PlayerScreen(
     var screenOffsetY by remember { mutableFloatStateOf(0f) }
     val animatedScreenOffsetY by animateFloatAsState(targetValue = screenOffsetY, label = "screenDismissY")
 
-    // Dynamic Pastel Aura on White Canvas
+    // Dynamic Pastel Aura on White Canvas with adjustable intensity
     val bgBrush = if (dominantColor != null && dynamicBackgroundEnabled) {
+        val alphaPrimary = dynamicBgIntensity.coerceIn(0.05f, 0.95f)
+        val alphaSecondary = (alphaPrimary * 0.35f).coerceIn(0.02f, 0.5f)
         Brush.radialGradient(
             colors = listOf(
-                dominantColor!!.copy(alpha = 0.22f),
-                dominantColor!!.copy(alpha = 0.08f),
+                dominantColor!!.copy(alpha = alphaPrimary),
+                dominantColor!!.copy(alpha = alphaSecondary),
                 Color.White
             ),
             radius = 1200f
@@ -327,33 +331,37 @@ fun PlayerScreen(
 
         Spacer(modifier = Modifier.height(8.dp))
 
-        // 2. Center Art Cover with Horizontal Paging Carousel
+        // 2. Center Art Cover with Horizontal Paging Carousel (Single centered artwork, zero peeking)
         HorizontalPager(
             state = pagerState,
             modifier = Modifier
                 .fillMaxWidth()
-                .height(290.dp),
-            pageSpacing = 16.dp,
-            contentPadding = PaddingValues(horizontal = 36.dp)
+                .height(280.dp),
+            pageSpacing = 24.dp
         ) { page ->
             val pageTrack = queueList.getOrNull(page) ?: track
             Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .aspectRatio(1f)
-                    .clip(RoundedCornerShape(28.dp))
-                    .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(28.dp)),
+                modifier = Modifier.fillMaxSize(),
                 contentAlignment = Alignment.Center
             ) {
-                VoxCoverArt(
-                    filePath = pageTrack.filePath,
-                    contentDescription = pageTrack.title,
-                    shape = RoundedCornerShape(28.dp),
-                    iconSize = 64.dp,
+                Box(
                     modifier = Modifier
-                        .fillMaxSize()
+                        .fillMaxHeight()
+                        .aspectRatio(1f)
                         .clip(RoundedCornerShape(28.dp))
-                )
+                        .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(28.dp)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    VoxCoverArt(
+                        filePath = pageTrack.filePath,
+                        contentDescription = pageTrack.title,
+                        shape = RoundedCornerShape(28.dp),
+                        iconSize = 64.dp,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .clip(RoundedCornerShape(28.dp))
+                    )
+                }
             }
         }
 

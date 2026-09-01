@@ -256,9 +256,41 @@ class MusicPlayerController @Inject constructor(
         }
     }
 
+    private fun performCrossfadeTransition(onSwitch: () -> Unit) {
+        val prefs = context.getSharedPreferences("vox_prefs", Context.MODE_PRIVATE)
+        val crossfadeEnabled = prefs.getBoolean("crossfade_enabled", false)
+        val crossfadeDurationS = prefs.getFloat("crossfade_duration_s", 1.5f)
+        val player = controller
+        if (player == null || !crossfadeEnabled || !player.isPlaying || crossfadeDurationS <= 0f) {
+            onSwitch()
+            return
+        }
+
+        val halfDurationMs = ((crossfadeDurationS * 1000f) / 2f).toLong().coerceIn(150L, 1500L)
+        val steps = 10
+        val stepInterval = (halfDurationMs / steps).coerceAtLeast(15L)
+
+        scope.launch(Dispatchers.Main) {
+            // Fade Out
+            for (i in steps downTo 0) {
+                player.volume = (i.toFloat() / steps).coerceIn(0f, 1f)
+                delay(stepInterval)
+            }
+            onSwitch()
+            // Fade In
+            for (i in 0..steps) {
+                player.volume = (i.toFloat() / steps).coerceIn(0f, 1f)
+                delay(stepInterval)
+            }
+            player.volume = 1f
+        }
+    }
+
     fun skipToQueueIndex(index: Int) {
         if (index in currentPlaylist.indices) {
-            controller?.seekToDefaultPosition(index)
+            performCrossfadeTransition {
+                controller?.seekToDefaultPosition(index)
+            }
         }
     }
 
@@ -296,13 +328,15 @@ class MusicPlayerController @Inject constructor(
     }
 
     fun skipNext() {
-        controller?.let { player ->
-            if (player.hasNextMediaItem()) {
-                player.seekToNextMediaItem()
-            } else if (currentPlaylist.size > 1) {
-                player.seekToDefaultPosition(0)
-            } else {
-                player.seekTo(0L)
+        performCrossfadeTransition {
+            controller?.let { player ->
+                if (player.hasNextMediaItem()) {
+                    player.seekToNextMediaItem()
+                } else if (currentPlaylist.size > 1) {
+                    player.seekToDefaultPosition(0)
+                } else {
+                    player.seekTo(0L)
+                }
             }
         }
     }
@@ -311,12 +345,14 @@ class MusicPlayerController @Inject constructor(
         controller?.let { player ->
             val pos = player.currentPosition.coerceAtLeast(0L)
             if (pos <= 3000L) {
-                if (player.hasPreviousMediaItem()) {
-                    player.seekToPreviousMediaItem()
-                } else if (currentPlaylist.size > 1) {
-                    player.seekToDefaultPosition(currentPlaylist.size - 1)
-                } else {
-                    player.seekTo(0L)
+                performCrossfadeTransition {
+                    if (player.hasPreviousMediaItem()) {
+                        player.seekToPreviousMediaItem()
+                    } else if (currentPlaylist.size > 1) {
+                        player.seekToDefaultPosition(currentPlaylist.size - 1)
+                    } else {
+                        player.seekTo(0L)
+                    }
                 }
             } else {
                 player.seekTo(0L)

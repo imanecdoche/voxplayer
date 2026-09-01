@@ -47,6 +47,16 @@
             </intent-filter>
         </activity>
 
+        <!-- Lockscreen Lite Player Activity -->
+        <activity
+            android:name=".feature.lockscreen.LockscreenPlayerActivity"
+            android:exported="false"
+            android:showWhenLocked="true"
+            android:turnScreenOn="true"
+            android:excludeFromRecents="true"
+            android:launchMode="singleTop"
+            android:theme="@style/Theme.Vox" />
+
         <!-- MediaSessionService for persistent background playback -->
         <service
             android:name=".core.audio.service.MusicPlaybackService"

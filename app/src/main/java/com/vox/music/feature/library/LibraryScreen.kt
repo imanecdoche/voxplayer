@@ -136,6 +136,14 @@ fun LibraryScreen(
         return
     }
 
+    // Full Screen Settings & Preferences Screen
+    if (showMainSettingsSheet) {
+        com.vox.music.feature.settings.SettingsScreen(
+            onNavigateBack = { showMainSettingsSheet = false }
+        )
+        return
+    }
+
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -632,77 +640,6 @@ fun LibraryScreen(
             onSortSelected = { viewModel.onIntent(LibraryIntent.SetSortOrder(it)) },
             onDismiss = { viewModel.onIntent(LibraryIntent.SetShowSortBottomSheet(false)) }
         )
-    }
-
-    // Main App Settings Bottom Sheet
-    if (showMainSettingsSheet) {
-        val settingsSheetState = androidx.compose.material3.rememberModalBottomSheetState(skipPartiallyExpanded = true)
-        var dynamicBgEnabled by remember {
-            mutableStateOf(prefs.getBoolean("dynamic_background_enabled", true))
-        }
-
-        androidx.compose.material3.ModalBottomSheet(
-            onDismissRequest = { showMainSettingsSheet = false },
-            sheetState = settingsSheetState,
-            containerColor = MaterialTheme.colorScheme.background,
-            shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp),
-            dragHandle = null
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 20.dp, vertical = 24.dp)
-            ) {
-                Text(
-                    text = "SETTINGS & PREFERENCES",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onBackground
-                )
-
-                Spacer(modifier = Modifier.height(14.dp))
-                HairlineDivider()
-                Spacer(modifier = Modifier.height(14.dp))
-
-                // Dynamic Ambient Background Setting
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable {
-                            val newVal = !dynamicBgEnabled
-                            dynamicBgEnabled = newVal
-                            prefs.edit().putBoolean("dynamic_background_enabled", newVal).apply()
-                        }
-                        .padding(vertical = 8.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column(modifier = Modifier.weight(1f).padding(end = 16.dp)) {
-                        Text(
-                            text = "Dynamic Ambient Background",
-                            style = MaterialTheme.typography.bodyLarge,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onBackground
-                        )
-                        Text(
-                            text = "Extract dominant album artwork colors into a soft radial background glow on the Player screen (pure #000000 when disabled).",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = VoxTheme.colors.subtleText
-                        )
-                    }
-
-                    Switch(
-                        checked = dynamicBgEnabled,
-                        onCheckedChange = {
-                            dynamicBgEnabled = it
-                            prefs.edit().putBoolean("dynamic_background_enabled", it).apply()
-                        }
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(20.dp))
-            }
-        }
     }
 }
 
