@@ -17,9 +17,9 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Remove
+import com.composables.icons.lucide.Lucide
+import com.composables.icons.lucide.Minus
+import com.composables.icons.lucide.Plus
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -156,7 +156,7 @@ fun SpeedPitchSheet(
                     modifier = Modifier.size(32.dp)
                 ) {
                     Icon(
-                        imageVector = Icons.Filled.Remove,
+                        imageVector = Lucide.Minus,
                         contentDescription = "Decrease Speed",
                         tint = MaterialTheme.colorScheme.onBackground,
                         modifier = Modifier.size(18.dp)
@@ -182,7 +182,7 @@ fun SpeedPitchSheet(
                     modifier = Modifier.size(32.dp)
                 ) {
                     Icon(
-                        imageVector = Icons.Filled.Add,
+                        imageVector = Lucide.Plus,
                         contentDescription = "Increase Speed",
                         tint = MaterialTheme.colorScheme.onBackground,
                         modifier = Modifier.size(18.dp)
@@ -273,7 +273,7 @@ fun SpeedPitchSheet(
                     modifier = Modifier.size(32.dp)
                 ) {
                     Icon(
-                        imageVector = Icons.Filled.Remove,
+                        imageVector = Lucide.Minus,
                         contentDescription = "Decrease Pitch",
                         tint = MaterialTheme.colorScheme.onBackground,
                         modifier = Modifier.size(18.dp)
@@ -300,7 +300,7 @@ fun SpeedPitchSheet(
                     modifier = Modifier.size(32.dp)
                 ) {
                     Icon(
-                        imageVector = Icons.Filled.Add,
+                        imageVector = Lucide.Plus,
                         contentDescription = "Increase Pitch",
                         tint = MaterialTheme.colorScheme.onBackground,
                         modifier = Modifier.size(18.dp)

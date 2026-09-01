@@ -16,9 +16,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Close
+import com.composables.icons.lucide.Lucide
+import com.composables.icons.lucide.Plus
+import com.composables.icons.lucide.X
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
@@ -101,7 +101,7 @@ fun TagEditorDialog(
                                 )
                                 Spacer(modifier = Modifier.width(4.dp))
                                 Icon(
-                                    imageVector = Icons.Filled.Close,
+                                    imageVector = Lucide.X,
                                     contentDescription = "Remove Tag",
                                     tint = VoxTheme.colors.subtleText,
                                     modifier = Modifier
@@ -154,7 +154,7 @@ fun TagEditorDialog(
                         modifier = Modifier.size(28.dp)
                     ) {
                         Icon(
-                            imageVector = Icons.Filled.Add,
+                            imageVector = Lucide.Plus,
                             contentDescription = "Add Tag",
                             tint = MaterialTheme.colorScheme.onBackground,
                             modifier = Modifier.size(18.dp)
