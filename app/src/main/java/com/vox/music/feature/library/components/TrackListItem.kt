@@ -28,6 +28,9 @@ import com.vox.music.ui.components.HairlineDivider
 import com.vox.music.ui.components.SharpCoverArt
 import com.vox.music.ui.theme.VoxTheme
 
+import androidx.compose.foundation.shape.RoundedCornerShape
+import com.vox.music.ui.components.VoxCoverArt
+
 @Composable
 fun TrackListItem(
     track: AudioTrack,
@@ -47,11 +50,13 @@ fun TrackListItem(
                 .padding(horizontal = 16.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Album art 1:1 sharp corners (zero radius)
-            SharpCoverArt(
-                model = track.filePath,
+            // Album art with 6.dp rounded corners and Lucide.Music fallback
+            VoxCoverArt(
+                filePath = track.filePath,
                 contentDescription = track.title,
-                size = 44.dp
+                shape = RoundedCornerShape(6.dp),
+                iconSize = 20.dp,
+                modifier = Modifier.size(44.dp)
             )
 
             Column(

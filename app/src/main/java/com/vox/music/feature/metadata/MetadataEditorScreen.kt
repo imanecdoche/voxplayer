@@ -51,6 +51,9 @@ import com.vox.music.core.model.AudioMetadata
 import com.vox.music.ui.components.HairlineDivider
 import com.vox.music.ui.theme.VoxTheme
 
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.clip
+
 @Composable
 fun MetadataEditorScreen(
     metadata: AudioMetadata,
@@ -139,7 +142,7 @@ fun MetadataEditorScreen(
                         )
                         onSave(updated, newArtworkBytes)
                     },
-                    shape = RectangleShape,
+                    shape = RoundedCornerShape(8.dp),
                     colors = ButtonDefaults.buttonColors(
                         containerColor = MaterialTheme.colorScheme.onBackground,
                         contentColor = MaterialTheme.colorScheme.background
@@ -170,7 +173,8 @@ fun MetadataEditorScreen(
                 .verticalScroll(scrollState)
                 .padding(horizontal = 16.dp, vertical = 16.dp)
         ) {
-            // Artwork section (1:1 sharp)
+
+            // Artwork section (RoundedCornerShape 8.dp)
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
@@ -178,8 +182,9 @@ fun MetadataEditorScreen(
                 Box(
                     modifier = Modifier
                         .size(100.dp)
-                        .border(1.dp, MaterialTheme.colorScheme.onBackground, RectangleShape)
-                        .background(MaterialTheme.colorScheme.surfaceVariant),
+                        .clip(RoundedCornerShape(8.dp))
+                        .border(1.dp, MaterialTheme.colorScheme.onBackground, RoundedCornerShape(8.dp))
+                        .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(8.dp)),
                     contentAlignment = Alignment.Center
                 ) {
                     when {
@@ -188,7 +193,9 @@ fun MetadataEditorScreen(
                                 model = selectedImageUri,
                                 contentDescription = "New Artwork",
                                 contentScale = ContentScale.Crop,
-                                modifier = Modifier.fillMaxSize()
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .clip(RoundedCornerShape(8.dp))
                             )
                         }
                         metadata.artworkBytes != null -> {
@@ -196,7 +203,9 @@ fun MetadataEditorScreen(
                                 model = metadata.artworkBytes,
                                 contentDescription = "Current Artwork",
                                 contentScale = ContentScale.Crop,
-                                modifier = Modifier.fillMaxSize()
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .clip(RoundedCornerShape(8.dp))
                             )
                         }
                         else -> {
@@ -228,14 +237,14 @@ fun MetadataEditorScreen(
                     Spacer(modifier = Modifier.height(8.dp))
                     Button(
                         onClick = { imagePickerLauncher.launch("image/*") },
-                        shape = RectangleShape,
+                        shape = RoundedCornerShape(8.dp),
                         colors = ButtonDefaults.buttonColors(
                             containerColor = MaterialTheme.colorScheme.background,
                             contentColor = MaterialTheme.colorScheme.onBackground
                         ),
                         modifier = Modifier
                             .height(34.dp)
-                            .border(0.5.dp, MaterialTheme.colorScheme.onBackground, RectangleShape)
+                            .border(0.5.dp, MaterialTheme.colorScheme.onBackground, RoundedCornerShape(8.dp))
                     ) {
                         Text(
                             text = "CHANGE ARTWORK",
@@ -308,7 +317,7 @@ private fun MetadataInputField(
             cursorBrush = SolidColor(MaterialTheme.colorScheme.onBackground),
             modifier = Modifier
                 .fillMaxWidth()
-                .border(0.5.dp, VoxTheme.colors.divider, RectangleShape)
+                .border(0.5.dp, VoxTheme.colors.divider, RoundedCornerShape(8.dp))
                 .padding(horizontal = 12.dp, vertical = 10.dp)
         )
     }

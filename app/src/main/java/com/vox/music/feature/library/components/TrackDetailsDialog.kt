@@ -25,6 +25,8 @@ import com.vox.music.core.model.AudioTrack
 import com.vox.music.ui.components.HairlineDivider
 import com.vox.music.ui.theme.VoxTheme
 
+import androidx.compose.foundation.shape.RoundedCornerShape
+
 @Composable
 fun TrackDetailsDialog(
     track: AudioTrack,
@@ -32,11 +34,11 @@ fun TrackDetailsDialog(
 ) {
     Dialog(onDismissRequest = onDismiss) {
         Surface(
-            shape = RectangleShape,
+            shape = RoundedCornerShape(16.dp),
             color = MaterialTheme.colorScheme.background,
             modifier = Modifier
                 .fillMaxWidth()
-                .border(1.dp, MaterialTheme.colorScheme.onBackground, RectangleShape)
+                .border(1.dp, MaterialTheme.colorScheme.onBackground, RoundedCornerShape(16.dp))
         ) {
             Column(
                 modifier = Modifier
@@ -72,7 +74,7 @@ fun TrackDetailsDialog(
 
                 Button(
                     onClick = onDismiss,
-                    shape = RectangleShape,
+                    shape = RoundedCornerShape(8.dp),
                     colors = ButtonDefaults.buttonColors(
                         containerColor = MaterialTheme.colorScheme.onBackground,
                         contentColor = MaterialTheme.colorScheme.background

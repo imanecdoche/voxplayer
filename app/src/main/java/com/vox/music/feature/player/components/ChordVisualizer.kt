@@ -24,6 +24,9 @@ import com.vox.music.core.model.ChordEvent
 import com.vox.music.ui.components.HairlineDivider
 import com.vox.music.ui.theme.VoxTheme
 
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.clip
+
 @Composable
 fun ChordVisualizer(
     activeChord: ChordEvent?,
@@ -33,9 +36,10 @@ fun ChordVisualizer(
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .border(0.5.dp, VoxTheme.colors.divider, RectangleShape)
-            .background(MaterialTheme.colorScheme.background)
-            .padding(12.dp)
+            .clip(RoundedCornerShape(10.dp))
+            .border(0.5.dp, VoxTheme.colors.divider, RoundedCornerShape(10.dp))
+            .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(10.dp))
+            .padding(14.dp)
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -60,17 +64,19 @@ fun ChordVisualizer(
             }
         }
 
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(10.dp))
 
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            // Big Active Chord Box
+            // Big Active Chord Box (RoundedCornerShape 6.dp)
             Box(
                 modifier = Modifier
-                    .border(1.dp, MaterialTheme.colorScheme.onBackground, RectangleShape)
+                    .clip(RoundedCornerShape(6.dp))
+                    .border(1.dp, MaterialTheme.colorScheme.onBackground, RoundedCornerShape(6.dp))
+                    .background(MaterialTheme.colorScheme.background, RoundedCornerShape(6.dp))
                     .padding(horizontal = 16.dp, vertical = 6.dp),
                 contentAlignment = Alignment.Center
             ) {
@@ -112,7 +118,9 @@ fun ChordVisualizer(
                         upcomingChords.forEach { item ->
                             Box(
                                 modifier = Modifier
-                                    .border(0.5.dp, VoxTheme.colors.divider, RectangleShape)
+                                    .clip(RoundedCornerShape(4.dp))
+                                    .border(0.5.dp, VoxTheme.colors.divider, RoundedCornerShape(4.dp))
+                                    .background(MaterialTheme.colorScheme.background, RoundedCornerShape(4.dp))
                                     .padding(horizontal = 8.dp, vertical = 4.dp)
                             ) {
                                 Text(

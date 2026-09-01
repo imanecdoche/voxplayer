@@ -35,6 +35,8 @@ import com.vox.music.core.model.Playlist
 import com.vox.music.ui.components.HairlineDivider
 import com.vox.music.ui.theme.VoxTheme
 
+import androidx.compose.foundation.layout.PaddingValues
+
 @Composable
 fun PlaylistsView(
     playlists: List<Playlist>,
@@ -85,7 +87,10 @@ fun PlaylistsView(
                 )
             }
         } else {
-            LazyColumn(modifier = Modifier.weight(1f)) {
+            LazyColumn(
+                modifier = Modifier.weight(1f),
+                contentPadding = PaddingValues(bottom = 88.dp)
+            ) {
                 item {
                     Row(
                         modifier = Modifier

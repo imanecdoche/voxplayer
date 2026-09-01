@@ -42,6 +42,8 @@ import com.vox.music.core.model.Playlist
 import com.vox.music.ui.components.HairlineDivider
 import com.vox.music.ui.theme.VoxTheme
 
+import androidx.compose.foundation.shape.RoundedCornerShape
+
 @Composable
 fun AddToPlaylistDialog(
     playlists: List<Playlist>,
@@ -54,11 +56,11 @@ fun AddToPlaylistDialog(
 
     Dialog(onDismissRequest = onDismiss) {
         Surface(
-            shape = RectangleShape,
+            shape = RoundedCornerShape(16.dp),
             color = MaterialTheme.colorScheme.background,
             modifier = Modifier
                 .fillMaxWidth()
-                .border(1.dp, MaterialTheme.colorScheme.onBackground, RectangleShape)
+                .border(1.dp, MaterialTheme.colorScheme.onBackground, RoundedCornerShape(16.dp))
         ) {
             Column(
                 modifier = Modifier
@@ -94,7 +96,7 @@ fun AddToPlaylistDialog(
                         cursorBrush = SolidColor(MaterialTheme.colorScheme.onBackground),
                         modifier = Modifier
                             .fillMaxWidth()
-                            .border(0.5.dp, VoxTheme.colors.divider, RectangleShape)
+                            .border(0.5.dp, VoxTheme.colors.divider, RoundedCornerShape(8.dp))
                             .padding(horizontal = 12.dp, vertical = 10.dp)
                     )
                     Spacer(modifier = Modifier.height(16.dp))
@@ -104,7 +106,7 @@ fun AddToPlaylistDialog(
                     ) {
                         Button(
                             onClick = { isCreatingNew = false },
-                            shape = RectangleShape,
+                            shape = RoundedCornerShape(8.dp),
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = MaterialTheme.colorScheme.background,
                                 contentColor = MaterialTheme.colorScheme.onBackground
@@ -112,7 +114,7 @@ fun AddToPlaylistDialog(
                             modifier = Modifier
                                 .weight(1f)
                                 .height(40.dp)
-                                .border(0.5.dp, VoxTheme.colors.divider, RectangleShape)
+                                .border(0.5.dp, VoxTheme.colors.divider, RoundedCornerShape(8.dp))
                         ) {
                             Text(text = "CANCEL", style = MaterialTheme.typography.labelMedium)
                         }
@@ -123,7 +125,7 @@ fun AddToPlaylistDialog(
                                     onDismiss()
                                 }
                             },
-                            shape = RectangleShape,
+                            shape = RoundedCornerShape(8.dp),
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = MaterialTheme.colorScheme.onBackground,
                                 contentColor = MaterialTheme.colorScheme.background
@@ -213,7 +215,7 @@ fun AddToPlaylistDialog(
 
                     Button(
                         onClick = onDismiss,
-                        shape = RectangleShape,
+                        shape = RoundedCornerShape(8.dp),
                         colors = ButtonDefaults.buttonColors(
                             containerColor = MaterialTheme.colorScheme.background,
                             contentColor = MaterialTheme.colorScheme.onBackground
@@ -221,7 +223,7 @@ fun AddToPlaylistDialog(
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(40.dp)
-                            .border(0.5.dp, VoxTheme.colors.divider, RectangleShape)
+                            .border(0.5.dp, VoxTheme.colors.divider, RoundedCornerShape(8.dp))
                     ) {
                         Text(
                             text = "CLOSE",

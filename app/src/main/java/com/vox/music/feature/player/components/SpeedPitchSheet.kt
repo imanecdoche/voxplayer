@@ -42,6 +42,8 @@ import com.vox.music.ui.components.HairlineDivider
 import com.vox.music.ui.theme.VoxTheme
 import kotlin.math.roundToInt
 
+import androidx.compose.foundation.shape.RoundedCornerShape
+
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun SpeedPitchSheet(
@@ -70,7 +72,7 @@ fun SpeedPitchSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
         containerColor = MaterialTheme.colorScheme.background,
-        shape = RectangleShape,
+        shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp),
         dragHandle = null,
         modifier = modifier
     ) {
@@ -190,7 +192,7 @@ fun SpeedPitchSheet(
                 }
             }
 
-            // Quick Speed Preset Chips
+            // Quick Speed Preset Chips (RoundedCornerShape 6.dp)
             FlowRow(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(6.dp),
@@ -203,11 +205,11 @@ fun SpeedPitchSheet(
                             .border(
                                 width = 0.5.dp,
                                 color = if (isSelected) MaterialTheme.colorScheme.onBackground else VoxTheme.colors.divider,
-                                shape = RectangleShape
+                                shape = RoundedCornerShape(6.dp)
                             )
                             .background(
                                 color = if (isSelected) MaterialTheme.colorScheme.onBackground else MaterialTheme.colorScheme.background,
-                                shape = RectangleShape
+                                shape = RoundedCornerShape(6.dp)
                             )
                             .clickable { onSpeedChange(preset) }
                             .padding(horizontal = 10.dp, vertical = 6.dp)
@@ -308,7 +310,7 @@ fun SpeedPitchSheet(
                 }
             }
 
-            // Quick Pitch Preset Chips
+            // Quick Pitch Preset Chips (RoundedCornerShape 6.dp)
             FlowRow(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(6.dp),
@@ -327,11 +329,11 @@ fun SpeedPitchSheet(
                             .border(
                                 width = 0.5.dp,
                                 color = if (isSelected) MaterialTheme.colorScheme.onBackground else VoxTheme.colors.divider,
-                                shape = RectangleShape
+                                shape = RoundedCornerShape(6.dp)
                             )
                             .background(
                                 color = if (isSelected) MaterialTheme.colorScheme.onBackground else MaterialTheme.colorScheme.background,
-                                shape = RectangleShape
+                                shape = RoundedCornerShape(6.dp)
                             )
                             .clickable { onPitchChange(preset) }
                             .padding(horizontal = 10.dp, vertical = 6.dp)
@@ -387,7 +389,7 @@ fun SpeedPitchSheet(
 
                 Button(
                     onClick = onSetPointA,
-                    shape = RectangleShape,
+                    shape = RoundedCornerShape(8.dp),
                     colors = ButtonDefaults.buttonColors(
                         containerColor = if (pointA != null) MaterialTheme.colorScheme.onBackground else MaterialTheme.colorScheme.background,
                         contentColor = if (pointA != null) MaterialTheme.colorScheme.background else MaterialTheme.colorScheme.onBackground
@@ -395,7 +397,7 @@ fun SpeedPitchSheet(
                     modifier = Modifier
                         .weight(1f)
                         .height(38.dp)
-                        .border(0.5.dp, VoxTheme.colors.divider, RectangleShape)
+                        .border(0.5.dp, VoxTheme.colors.divider, RoundedCornerShape(8.dp))
                 ) {
                     Text(
                         text = aText,
@@ -406,7 +408,7 @@ fun SpeedPitchSheet(
 
                 Button(
                     onClick = onSetPointB,
-                    shape = RectangleShape,
+                    shape = RoundedCornerShape(8.dp),
                     colors = ButtonDefaults.buttonColors(
                         containerColor = if (pointB != null) MaterialTheme.colorScheme.onBackground else MaterialTheme.colorScheme.background,
                         contentColor = if (pointB != null) MaterialTheme.colorScheme.background else MaterialTheme.colorScheme.onBackground
@@ -414,7 +416,7 @@ fun SpeedPitchSheet(
                     modifier = Modifier
                         .weight(1f)
                         .height(38.dp)
-                        .border(0.5.dp, VoxTheme.colors.divider, RectangleShape)
+                        .border(0.5.dp, VoxTheme.colors.divider, RoundedCornerShape(8.dp))
                 ) {
                     Text(
                         text = bText,
@@ -426,10 +428,10 @@ fun SpeedPitchSheet(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // Done / Dismiss Button
+            // Done / Dismiss Button (RoundedCornerShape 8.dp)
             Button(
                 onClick = onDismiss,
-                shape = RectangleShape,
+                shape = RoundedCornerShape(8.dp),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = MaterialTheme.colorScheme.onBackground,
                     contentColor = MaterialTheme.colorScheme.background

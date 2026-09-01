@@ -33,6 +33,8 @@ import com.vox.music.feature.player.components.MiniPlayerBar
 import com.vox.music.ui.theme.VoxTheme
 import dagger.hilt.android.AndroidEntryPoint
 
+import androidx.compose.foundation.layout.navigationBarsPadding
+
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -57,26 +59,31 @@ class MainActivity : ComponentActivity() {
                     }
 
                     Box(modifier = Modifier.fillMaxSize()) {
-                        // Library Content
-                        Column(modifier = Modifier.fillMaxSize()) {
-                            Box(modifier = Modifier.weight(1f)) {
-                                LibraryScreen(
-                                    viewModel = libraryViewModel,
-                                    onTrackSelected = { track ->
-                                        playerViewModel.playSingleTrack(track)
-                                    }
-                                )
-                            }
+                        // Library Content (Fills screen)
+                        LibraryScreen(
+                            viewModel = libraryViewModel,
+                            onTrackSelected = { track ->
+                                playerViewModel.playSingleTrack(track)
+                            },
+                            modifier = Modifier.fillMaxSize()
+                        )
 
-                            // Docked Mini Player
-                            if (playerState.currentTrack != null && !isPlayerExpanded) {
-                                MiniPlayerBar(
-                                    playerState = playerState,
-                                    onTogglePlayPause = { playerViewModel.togglePlayPause() },
-                                    onSkipNext = { playerViewModel.skipNext() },
-                                    onClick = { isPlayerExpanded = true }
-                                )
-                            }
+                        // Floating Capsule Mini Player
+                        AnimatedVisibility(
+                            visible = playerState.currentTrack != null && !isPlayerExpanded,
+                            enter = slideInVertically(initialOffsetY = { it }) + fadeIn(),
+                            exit = slideOutVertically(targetOffsetY = { it }) + fadeOut(),
+                            modifier = Modifier
+                                .align(Alignment.BottomCenter)
+                                .navigationBarsPadding()
+                        ) {
+                            MiniPlayerBar(
+                                playerState = playerState,
+                                onTogglePlayPause = { playerViewModel.togglePlayPause() },
+                                onSkipNext = { playerViewModel.skipNext() },
+                                onSkipPrevious = { playerViewModel.skipPrevious() },
+                                onClick = { isPlayerExpanded = true }
+                            )
                         }
 
                         // Full Screen Player Overlay

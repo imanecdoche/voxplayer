@@ -50,6 +50,8 @@ import com.vox.music.ui.components.HairlineDivider
 import com.vox.music.ui.theme.VoxTheme
 import kotlin.math.roundToInt
 
+import androidx.compose.foundation.shape.RoundedCornerShape
+
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun EqualizerScreen(
@@ -98,17 +100,17 @@ fun EqualizerScreen(
                 letterSpacing = 1.sp
             )
 
-            // Flat Switch
+            // Flat Switch (RoundedCornerShape 6.dp)
             Box(
                 modifier = Modifier
                     .border(
                         0.5.dp,
                         if (equalizerState.isEnabled) MaterialTheme.colorScheme.onBackground else VoxTheme.colors.divider,
-                        RectangleShape
+                        RoundedCornerShape(6.dp)
                     )
                     .background(
                         if (equalizerState.isEnabled) MaterialTheme.colorScheme.onBackground else MaterialTheme.colorScheme.background,
-                        RectangleShape
+                        RoundedCornerShape(6.dp)
                     )
                     .clickable { onToggleEnabled(!equalizerState.isEnabled) }
                     .padding(horizontal = 10.dp, vertical = 6.dp)
@@ -125,7 +127,7 @@ fun EqualizerScreen(
         HairlineDivider()
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Preset Chips
+        // Preset Chips (RoundedCornerShape 6.dp)
         Text(
             text = "PRESETS",
             style = MaterialTheme.typography.labelMedium,
@@ -146,11 +148,11 @@ fun EqualizerScreen(
                         .border(
                             0.5.dp,
                             if (isSelected) MaterialTheme.colorScheme.onBackground else VoxTheme.colors.divider,
-                            RectangleShape
+                            RoundedCornerShape(6.dp)
                         )
                         .background(
                             if (isSelected) MaterialTheme.colorScheme.onBackground else MaterialTheme.colorScheme.background,
-                            RectangleShape
+                            RoundedCornerShape(6.dp)
                         )
                         .clickable(enabled = equalizerState.isEnabled) { onApplyPreset(preset) }
                         .padding(horizontal = 10.dp, vertical = 6.dp)

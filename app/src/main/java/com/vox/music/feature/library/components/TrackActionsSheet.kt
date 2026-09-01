@@ -38,6 +38,8 @@ import com.vox.music.core.model.AudioTrack
 import com.vox.music.ui.components.HairlineDivider
 import com.vox.music.ui.theme.VoxTheme
 
+import androidx.compose.foundation.shape.RoundedCornerShape
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TrackActionsSheet(
@@ -59,7 +61,7 @@ fun TrackActionsSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
         containerColor = MaterialTheme.colorScheme.background,
-        shape = RectangleShape,
+        shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp),
         dragHandle = null,
         modifier = modifier
     ) {

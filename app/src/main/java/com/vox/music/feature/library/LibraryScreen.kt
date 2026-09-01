@@ -67,6 +67,8 @@ import com.vox.music.ui.components.HairlineDivider
 import com.vox.music.ui.components.VoxHeader
 import com.vox.music.ui.theme.VoxTheme
 
+import androidx.compose.foundation.layout.PaddingValues
+
 @Composable
 fun LibraryScreen(
     viewModel: LibraryViewModel,
@@ -358,7 +360,10 @@ fun LibraryScreen(
                     if (uiState.folders.isEmpty()) {
                         EmptyStateView(message = "No audio directories found.\nTap refresh to scan storage.")
                     } else {
-                        LazyColumn(modifier = Modifier.fillMaxSize()) {
+                        LazyColumn(
+                            modifier = Modifier.fillMaxSize(),
+                            contentPadding = PaddingValues(bottom = 88.dp)
+                        ) {
                             item {
                                 Row(
                                     modifier = Modifier
@@ -550,7 +555,10 @@ private fun TrackListView(
     if (tracks.isEmpty()) {
         EmptyStateView(message = emptyMessage)
     } else {
-        LazyColumn(modifier = Modifier.fillMaxSize()) {
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(bottom = 88.dp)
+        ) {
             item {
                 Row(
                     modifier = Modifier

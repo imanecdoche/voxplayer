@@ -52,6 +52,7 @@ import com.vox.music.feature.equalizer.EqualizerScreen
 import com.vox.music.feature.player.components.SpeedPitchSheet
 import com.vox.music.ui.components.HairlineDivider
 import com.vox.music.ui.components.SharpCoverArt
+import com.vox.music.ui.components.VoxCoverArt
 import com.vox.music.ui.theme.VoxTheme
 
 @Composable
@@ -167,20 +168,16 @@ fun PlayerScreen(
         HairlineDivider()
         Spacer(modifier = Modifier.height(16.dp))
 
-        // 1:1 Album Cover Art (Sharp Corners, zero radius)
-        Box(
+        // 1:1 Album Cover Art (12.dp Rounded Corners with fallback placeholder)
+        VoxCoverArt(
+            filePath = track.filePath,
+            contentDescription = track.title,
+            shape = androidx.compose.foundation.shape.RoundedCornerShape(12.dp),
+            iconSize = 72.dp,
             modifier = Modifier
                 .fillMaxWidth()
                 .aspectRatio(1f)
-                .border(0.5.dp, VoxTheme.colors.divider, RectangleShape)
-        ) {
-            SharpCoverArt(
-                model = track.filePath,
-                contentDescription = track.title,
-                size = 360.dp,
-                modifier = Modifier.matchParentSize()
-            )
-        }
+        )
 
         Spacer(modifier = Modifier.height(20.dp))
 
@@ -206,7 +203,7 @@ fun PlayerScreen(
 
         Spacer(modifier = Modifier.height(12.dp))
 
-        // Technical Metadata Badges (Monochrome)
+        // Technical Metadata Badges (Monochrome with 4.dp Rounded Corners)
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -215,21 +212,44 @@ fun PlayerScreen(
             val keyText = if (track.musicalKey != null) "KEY: ${track.musicalKey}" else "KEY: --"
             val formatText = track.mimeType.substringAfterLast('/').uppercase()
 
-            Text(
-                text = "[ $bpmText ]",
-                style = MaterialTheme.typography.labelSmall,
-                color = VoxTheme.colors.subtleText
-            )
-            Text(
-                text = "[ $keyText ]",
-                style = MaterialTheme.typography.labelSmall,
-                color = VoxTheme.colors.subtleText
-            )
-            Text(
-                text = "[ $formatText ]",
-                style = MaterialTheme.typography.labelSmall,
-                color = VoxTheme.colors.subtleText
-            )
+            Box(
+                modifier = Modifier
+                    .border(0.5.dp, VoxTheme.colors.divider, androidx.compose.foundation.shape.RoundedCornerShape(4.dp))
+                    .padding(horizontal = 8.dp, vertical = 3.dp)
+            ) {
+                Text(
+                    text = bpmText,
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = FontWeight.Medium,
+                    color = MaterialTheme.colorScheme.onBackground
+                )
+            }
+
+            Box(
+                modifier = Modifier
+                    .border(0.5.dp, VoxTheme.colors.divider, androidx.compose.foundation.shape.RoundedCornerShape(4.dp))
+                    .padding(horizontal = 8.dp, vertical = 3.dp)
+            ) {
+                Text(
+                    text = keyText,
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = FontWeight.Medium,
+                    color = MaterialTheme.colorScheme.onBackground
+                )
+            }
+
+            Box(
+                modifier = Modifier
+                    .border(0.5.dp, VoxTheme.colors.divider, androidx.compose.foundation.shape.RoundedCornerShape(4.dp))
+                    .padding(horizontal = 8.dp, vertical = 3.dp)
+            ) {
+                Text(
+                    text = formatText,
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = FontWeight.Medium,
+                    color = MaterialTheme.colorScheme.onBackground
+                )
+            }
         }
 
         Spacer(modifier = Modifier.height(14.dp))
@@ -327,37 +347,47 @@ fun PlayerScreen(
             }
 
             // Previous
-            IconButton(onClick = { viewModel.skipPrevious() }) {
+            IconButton(
+                onClick = { viewModel.skipPrevious() },
+                modifier = Modifier
+                    .size(44.dp)
+                    .border(0.5.dp, VoxTheme.colors.divider, androidx.compose.foundation.shape.CircleShape)
+            ) {
                 Icon(
                     imageVector = Lucide.SkipBack,
                     contentDescription = "Previous Track",
                     tint = MaterialTheme.colorScheme.onBackground,
-                    modifier = Modifier.size(28.dp)
+                    modifier = Modifier.size(24.dp)
                 )
             }
 
-            // Play / Pause
+            // Play / Pause (CircleShape Main Button)
             IconButton(
                 onClick = { viewModel.togglePlayPause() },
                 modifier = Modifier
-                    .size(56.dp)
-                    .border(1.dp, MaterialTheme.colorScheme.onBackground, RectangleShape)
+                    .size(60.dp)
+                    .border(1.dp, MaterialTheme.colorScheme.onBackground, androidx.compose.foundation.shape.CircleShape)
             ) {
                 Icon(
                     imageVector = if (playerState.isPlaying) Lucide.Pause else Lucide.Play,
                     contentDescription = if (playerState.isPlaying) "Pause" else "Play",
                     tint = MaterialTheme.colorScheme.onBackground,
-                    modifier = Modifier.size(28.dp)
+                    modifier = Modifier.size(30.dp)
                 )
             }
 
             // Next
-            IconButton(onClick = { viewModel.skipNext() }) {
+            IconButton(
+                onClick = { viewModel.skipNext() },
+                modifier = Modifier
+                    .size(44.dp)
+                    .border(0.5.dp, VoxTheme.colors.divider, androidx.compose.foundation.shape.CircleShape)
+            ) {
                 Icon(
                     imageVector = Lucide.SkipForward,
                     contentDescription = "Next Track",
                     tint = MaterialTheme.colorScheme.onBackground,
-                    modifier = Modifier.size(28.dp)
+                    modifier = Modifier.size(24.dp)
                 )
             }
 
@@ -381,40 +411,45 @@ fun PlayerScreen(
         }
 
         Spacer(modifier = Modifier.weight(1f))
-        HairlineDivider()
+        Spacer(modifier = Modifier.height(12.dp))
 
-        // DSP & A-B Looper Footer Bar
-        Row(
+        // DSP & A-B Looper Footer Bar (RoundedCornerShape 8.dp)
+        Box(
             modifier = Modifier
                 .fillMaxWidth()
+                .border(0.5.dp, VoxTheme.colors.divider, androidx.compose.foundation.shape.RoundedCornerShape(8.dp))
                 .clickable { showSpeedPitchSheet = true }
-                .padding(vertical = 12.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+                .padding(horizontal = 14.dp, vertical = 12.dp)
         ) {
-            Text(
-                text = "SPEED: %.2fx".format(playerState.playbackSpeed),
-                style = MaterialTheme.typography.labelSmall,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onBackground
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "SPEED: %.2fx".format(playerState.playbackSpeed),
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onBackground
+                )
 
-            Text(
-                text = "PITCH: ${if (playerState.pitchSemitones > 0) "+" else ""}${playerState.pitchSemitones} st",
-                style = MaterialTheme.typography.labelSmall,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onBackground
-            )
+                Text(
+                    text = "PITCH: ${if (playerState.pitchSemitones > 0) "+" else ""}${playerState.pitchSemitones} st",
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onBackground
+                )
 
-            Text(
-                text = if (playerState.isABLoopActive) "A-B: ACTIVE" else "A-B: OFF",
-                style = MaterialTheme.typography.labelSmall,
-                fontWeight = FontWeight.Bold,
-                color = if (playerState.isABLoopActive) MaterialTheme.colorScheme.onBackground else VoxTheme.colors.subtleText
-            )
+                Text(
+                    text = if (playerState.isABLoopActive) "A-B: ACTIVE" else "A-B: OFF",
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = if (playerState.isABLoopActive) MaterialTheme.colorScheme.onBackground else VoxTheme.colors.subtleText
+                )
+            }
         }
 
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(12.dp))
     }
 
     if (showSpeedPitchSheet) {

@@ -44,6 +44,8 @@ import androidx.compose.ui.window.Dialog
 import com.vox.music.ui.components.HairlineDivider
 import com.vox.music.ui.theme.VoxTheme
 
+import androidx.compose.foundation.shape.RoundedCornerShape
+
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun TagEditorDialog(
@@ -56,11 +58,11 @@ fun TagEditorDialog(
 
     Dialog(onDismissRequest = onDismiss) {
         Surface(
-            shape = RectangleShape,
+            shape = RoundedCornerShape(16.dp),
             color = MaterialTheme.colorScheme.background,
             modifier = Modifier
                 .fillMaxWidth()
-                .border(1.dp, MaterialTheme.colorScheme.onBackground, RectangleShape)
+                .border(1.dp, MaterialTheme.colorScheme.onBackground, RoundedCornerShape(16.dp))
         ) {
             Column(
                 modifier = Modifier
@@ -78,7 +80,7 @@ fun TagEditorDialog(
                 HairlineDivider()
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // Tags Chips
+                // Tags Chips (RoundedCornerShape 6.dp)
                 if (tags.isNotEmpty()) {
                     FlowRow(
                         modifier = Modifier.fillMaxWidth(),
@@ -89,8 +91,8 @@ fun TagEditorDialog(
                             val formattedTag = if (tag.startsWith("#")) tag else "#$tag"
                             Row(
                                 modifier = Modifier
-                                    .border(0.5.dp, MaterialTheme.colorScheme.onBackground, RectangleShape)
-                                    .padding(start = 8.dp, end = 4.dp, top = 4.dp, bottom = 4.dp),
+                                    .border(0.5.dp, MaterialTheme.colorScheme.onBackground, RoundedCornerShape(6.dp))
+                                    .padding(start = 8.dp, end = 6.dp, top = 4.dp, bottom = 4.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Text(
@@ -114,11 +116,11 @@ fun TagEditorDialog(
                     Spacer(modifier = Modifier.height(16.dp))
                 }
 
-                // Add new tag row
+                // Add new tag row (RoundedCornerShape 8.dp)
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .border(0.5.dp, VoxTheme.colors.divider, RectangleShape)
+                        .border(0.5.dp, VoxTheme.colors.divider, RoundedCornerShape(8.dp))
                         .padding(horizontal = 12.dp, vertical = 8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -164,14 +166,14 @@ fun TagEditorDialog(
 
                 Spacer(modifier = Modifier.height(24.dp))
 
-                // Action Buttons
+                // Action Buttons (RoundedCornerShape 8.dp)
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Button(
                         onClick = onDismiss,
-                        shape = RectangleShape,
+                        shape = RoundedCornerShape(8.dp),
                         colors = ButtonDefaults.buttonColors(
                             containerColor = MaterialTheme.colorScheme.background,
                             contentColor = MaterialTheme.colorScheme.onBackground
@@ -179,7 +181,7 @@ fun TagEditorDialog(
                         modifier = Modifier
                             .weight(1f)
                             .height(42.dp)
-                            .border(0.5.dp, VoxTheme.colors.divider, RectangleShape)
+                            .border(0.5.dp, VoxTheme.colors.divider, RoundedCornerShape(8.dp))
                     ) {
                         Text(
                             text = "CANCEL",
@@ -193,7 +195,7 @@ fun TagEditorDialog(
                             onSaveTags(tags.toList())
                             onDismiss()
                         },
-                        shape = RectangleShape,
+                        shape = RoundedCornerShape(8.dp),
                         colors = ButtonDefaults.buttonColors(
                             containerColor = MaterialTheme.colorScheme.onBackground,
                             contentColor = MaterialTheme.colorScheme.background

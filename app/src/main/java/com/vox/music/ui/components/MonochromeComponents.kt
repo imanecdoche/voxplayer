@@ -12,23 +12,33 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
+import com.composables.icons.lucide.Lucide
+import com.composables.icons.lucide.Music
 import com.vox.music.R
+import com.vox.music.core.artwork.AudioArtwork
 import com.vox.music.ui.theme.VoxTheme
 
 /**
@@ -149,7 +159,51 @@ fun MonochromeHeader(
 }
 
 /**
- * Album art display strictly adhering to the 1:1 sharp corners rule (no rounded corners).
+ * Modern Monochrome Cover Art Composable with rounded corners and Lucide.Music placeholder.
+ */
+@Composable
+fun VoxCoverArt(
+    filePath: String?,
+    contentDescription: String?,
+    modifier: Modifier = Modifier,
+    shape: Shape = RoundedCornerShape(6.dp),
+    iconSize: Dp = 22.dp,
+    borderWidth: Dp = 0.5.dp
+) {
+    var hasError by remember(filePath) { mutableStateOf(false) }
+
+    Box(
+        modifier = modifier
+            .clip(shape)
+            .border(borderWidth, VoxTheme.colors.divider, shape)
+            .background(MaterialTheme.colorScheme.surfaceVariant, shape),
+        contentAlignment = Alignment.Center
+    ) {
+        if (!filePath.isNullOrBlank() && !hasError) {
+            AsyncImage(
+                model = AudioArtwork(filePath),
+                contentDescription = contentDescription,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier
+                    .matchParentSize()
+                    .clip(shape),
+                onError = { hasError = true },
+                onSuccess = { hasError = false }
+            )
+        }
+        if (filePath.isNullOrBlank() || hasError) {
+            Icon(
+                imageVector = Lucide.Music,
+                contentDescription = "No Cover Art",
+                tint = VoxTheme.colors.subtleText,
+                modifier = Modifier.size(iconSize)
+            )
+        }
+    }
+}
+
+/**
+ * Backward compatibility alias for Cover Art display.
  */
 @Composable
 fun SharpCoverArt(
@@ -157,19 +211,20 @@ fun SharpCoverArt(
     contentDescription: String?,
     modifier: Modifier = Modifier,
     size: Dp = 48.dp,
+    shape: Shape = RoundedCornerShape(6.dp),
     borderWidth: Dp = 0.5.dp
 ) {
-    Box(
-        modifier = modifier
-            .size(size)
-            .border(borderWidth, VoxTheme.colors.divider, RectangleShape)
-            .background(MaterialTheme.colorScheme.surface, RectangleShape)
-    ) {
-        AsyncImage(
-            model = model,
-            contentDescription = contentDescription,
-            contentScale = ContentScale.Crop,
-            modifier = Modifier.matchParentSize()
-        )
+    val path = when (model) {
+        is String -> model
+        is AudioArtwork -> model.filePath
+        else -> model?.toString()
     }
+    VoxCoverArt(
+        filePath = path,
+        contentDescription = contentDescription,
+        modifier = modifier.size(size),
+        shape = shape,
+        iconSize = (size * 0.45f).coerceAtLeast(16.dp),
+        borderWidth = borderWidth
+    )
 }
