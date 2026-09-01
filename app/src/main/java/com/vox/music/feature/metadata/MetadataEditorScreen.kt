@@ -101,7 +101,7 @@ fun MetadataEditorScreen(
         ) {
             IconButton(onClick = onNavigateBack) {
                 Icon(
-                    imageVector = Icons.AutoMirrored.Outlined.ArrowBack,
+                    imageVector = Lucide.ArrowLeft,
                     contentDescription = "Back",
                     tint = MaterialTheme.colorScheme.onBackground
                 )
@@ -145,6 +145,13 @@ fun MetadataEditorScreen(
                     ),
                     modifier = Modifier.height(36.dp)
                 ) {
+                    Icon(
+                        imageVector = Lucide.Check,
+                        contentDescription = "Save",
+                        tint = MaterialTheme.colorScheme.background,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
                     Text(
                         text = "SAVE",
                         style = MaterialTheme.typography.labelSmall,
@@ -193,7 +200,7 @@ fun MetadataEditorScreen(
                         }
                         else -> {
                             Icon(
-                                imageVector = Icons.Filled.Image,
+                                imageVector = Lucide.Image,
                                 contentDescription = "No Artwork",
                                 tint = VoxTheme.colors.subtleText,
                                 modifier = Modifier.size(36.dp)
