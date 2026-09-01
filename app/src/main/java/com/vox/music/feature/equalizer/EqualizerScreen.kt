@@ -19,8 +19,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.outlined.ArrowBack
+import com.composables.icons.lucide.ArrowLeft
+import com.composables.icons.lucide.Lucide
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
@@ -83,7 +83,7 @@ fun EqualizerScreen(
         ) {
             IconButton(onClick = onNavigateBack) {
                 Icon(
-                    imageVector = Icons.AutoMirrored.Outlined.ArrowBack,
+                    imageVector = Lucide.ArrowLeft,
                     contentDescription = "Back",
                     tint = MaterialTheme.colorScheme.onBackground,
                     modifier = Modifier.size(24.dp)

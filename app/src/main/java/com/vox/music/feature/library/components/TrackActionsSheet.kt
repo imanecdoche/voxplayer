@@ -10,15 +10,15 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.Label
-import androidx.compose.material.icons.automirrored.filled.PlaylistAdd
-import androidx.compose.material.icons.filled.ContentCut
-import androidx.compose.material.icons.filled.DeleteOutline
-import androidx.compose.material.icons.filled.DriveFileRenameOutline
-import androidx.compose.material.icons.filled.Favorite
-import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.outlined.FavoriteBorder
+import com.composables.icons.lucide.Activity
+import com.composables.icons.lucide.Edit3
+import com.composables.icons.lucide.FileEdit
+import com.composables.icons.lucide.Heart
+import com.composables.icons.lucide.ListMusic
+import com.composables.icons.lucide.Lucide
+import com.composables.icons.lucide.Scissors
+import com.composables.icons.lucide.Tag
+import com.composables.icons.lucide.Trash2
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -102,7 +102,7 @@ fun TrackActionsSheet(
 
             // Actions List
             ActionMenuItem(
-                icon = if (track.isFavorite) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
+                icon = Lucide.Heart,
                 label = if (track.isFavorite) "Remove from Favorites" else "Add to Favorites",
                 onClick = {
                     onToggleFavorite()
@@ -111,7 +111,7 @@ fun TrackActionsSheet(
             )
 
             ActionMenuItem(
-                icon = Icons.AutoMirrored.Filled.PlaylistAdd,
+                icon = Lucide.ListMusic,
                 label = "Add to Playlist...",
                 onClick = {
                     onDismiss()
@@ -120,7 +120,7 @@ fun TrackActionsSheet(
             )
 
             ActionMenuItem(
-                icon = Icons.AutoMirrored.Filled.Label,
+                icon = Lucide.Tag,
                 label = "Edit Custom Tags...",
                 onClick = {
                     onDismiss()
@@ -129,7 +129,7 @@ fun TrackActionsSheet(
             )
 
             ActionMenuItem(
-                icon = Icons.Filled.DriveFileRenameOutline,
+                icon = Lucide.FileEdit,
                 label = "Edit ID3 Metadata & Tags...",
                 onClick = {
                     onDismiss()
@@ -138,7 +138,7 @@ fun TrackActionsSheet(
             )
 
             ActionMenuItem(
-                icon = Icons.Filled.ContentCut,
+                icon = Lucide.Scissors,
                 label = "Clip & Trim Audio...",
                 onClick = {
                     onDismiss()
@@ -147,7 +147,7 @@ fun TrackActionsSheet(
             )
 
             ActionMenuItem(
-                icon = Icons.Filled.DriveFileRenameOutline,
+                icon = Lucide.Edit3,
                 label = "Rename File...",
                 onClick = {
                     onDismiss()
@@ -156,7 +156,7 @@ fun TrackActionsSheet(
             )
 
             ActionMenuItem(
-                icon = Icons.Filled.Info,
+                icon = Lucide.Activity,
                 label = "Audio File & Signal Inspector",
                 onClick = {
                     onDismiss()
@@ -165,7 +165,7 @@ fun TrackActionsSheet(
             )
 
             ActionMenuItem(
-                icon = Icons.Filled.DeleteOutline,
+                icon = Lucide.Trash2,
                 label = "Delete from Storage",
                 onClick = {
                     onDismiss()

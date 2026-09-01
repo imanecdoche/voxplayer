@@ -9,9 +9,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.ChevronRight
-import androidx.compose.material.icons.outlined.Folder
+import com.composables.icons.lucide.ChevronRight
+import com.composables.icons.lucide.Folder
+import com.composables.icons.lucide.Lucide
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -43,7 +43,7 @@ fun FolderListItem(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Icon(
-                imageVector = Icons.Outlined.Folder,
+                imageVector = Lucide.Folder,
                 contentDescription = "Folder",
                 tint = MaterialTheme.colorScheme.onBackground,
                 modifier = Modifier.size(24.dp)
@@ -79,7 +79,7 @@ fun FolderListItem(
             }
 
             Icon(
-                imageVector = Icons.Outlined.ChevronRight,
+                imageVector = Lucide.ChevronRight,
                 contentDescription = "Open Folder",
                 tint = VoxTheme.colors.subtleText,
                 modifier = Modifier.size(18.dp)
