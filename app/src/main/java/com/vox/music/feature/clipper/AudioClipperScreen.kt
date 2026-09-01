@@ -334,7 +334,7 @@ fun AudioClipperScreen(
                     .height(44.dp)
             ) {
                 Icon(
-                    imageVector = if (isPreviewPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
+                    imageVector = if (isPreviewPlaying) Lucide.Pause else Lucide.Play,
                     contentDescription = "Preview Clip",
                     modifier = Modifier.size(20.dp)
                 )
