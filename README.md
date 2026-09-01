@@ -1,311 +1,223 @@
-Untuk kebutuhan fitur yang kamu sebutkan—terutama pemrosesan audio tingkat lanjut (DSP), manipulasi file storage ketat, dan background playback yang stabil—pilihan terbaik dan paling solid adalah **Kotlin (Native Android)**.  
-   
-Jika menggunakan Flutter, kamu tetap akan terpaksa menulis banyak kode native (Kotlin & C++) via *Platform Channels* karena fitur analisis audio dan manajemen storage Android modern terlalu kompleks jika hanya mengandalkan plugin Flutter pihak ketiga.  
-   
-### **Alasan Memilih Kotlin Dibanding Flutter**  
-- **Analisis Audio Tingkat Lanjut (BPM, Key, Chord):**  
-- Fitur ini membutuhkan algoritma *Digital Signal Processing* (DSP) dan FFT (Fast Fourier Transform). Kamu perlu mengompilasi library C/C++ seperti **Aubio**,  **Essentia**, atau  **SoundTouch** menggunakan Android NDK (JNI). Di Kotlin, integrasi C++ ke native audio buffer berjalan langsung tanpa overhead jembatan (bridge) lintas platform.  
--    
-- **Background Playback & MediaSession:**  
-- Android memiliki arsitektur resmi **Jetpack Media3 (MediaSessionService + ExoPlayer)**. Media3 menangani siklus hidup background playback, integrasi notifikasi sistem, kontrol lockscreen, audio focus (saat ada telepon masuk), dan manajemen baterai secara native tanpa resiko service terbunuh tiba-tiba oleh sistem.  
--    
-- **Pitch Shifter & Speed Terpisah:**  
-- ExoPlayer di Kotlin sudah memiliki integrasi bawaan dengan SonicAudioProcessor, memungkinkan pengubahan pitch dan kecepatan pemutaran secara *real-time* dan independen tanpa merusak kualitas suara.  
--    
-- **Android Scoped Storage & Metadata Editor:**  
-- Sejak Android 10/11+, sistem keamanan storage (Scoped Storage) sangat ketat untuk operasi edit tag (ID3/FLAC), rename, delete, dan move file fisik. Kotlin memberi akses langsung ke MediaStore API dan Storage Access Framework (SAF) serta kompatibilitas penuh dengan library seperti **Jaudiotagger** atau  **FFmpeg-Kit**.  
--    
-### **Rekomendasi Tech Stack & Library**  
-| | | |  
-|-|-|-|  
-| **Kebutuhan Fitur** | **Library / Modul Rekomendasi** | **Keterangan** |   
-| **UI & Styling** | **Jetpack Compose** | Sangat fleksibel untuk styling monokrom minimalis (layout flat, typography-driven, tanpa container berat). |   
-| **Audio Core & Background** | **Jetpack Media3 (ExoPlayer + MediaSession)** | Standar resmi Android untuk pemutaran audio, queue, A-B loop, dan background service. |   
-| **Pitch & Speed Control** | **Sonic (Media3 AudioProcessor)** | Manipulasi pitch shifting dan speed tanpa dependensi audio engine eksternal. |   
-| **Audio Analysis (BPM & Key)** | **Aubio / SoundTouch (via NDK/C++)** | Ekstraksi tempo (BPM), deteksi pitch/key, dan spectral analysis. |   
-| **Audio Clipper & Tag Editor** | **FFmpeg-Kit Android** atau  **Jaudiotagger** | Trimming audio cepat tanpa re-encoding (stream copy) dan penulisan tag metadata ID3v2/Vorbis. |   
-| **Storage & Database Cache** | **MediaStore API + Room Database** | Memindai storage via ContentResolver dan menyimpan metadata/playlist lokal di Room DB. |   
-### **Pendekatan UI Monokrom & Flat di Jetpack Compose**  
-Untuk mencapai gaya monokrom clean tanpa container:  
-   
-- **Palette:** Gunakan MaterialTheme dengan palet warna murni hitam (#000000), putih (#FFFFFF), dan abu-abu netral (#757575) untuk secondary text.  
--    
-- **Layout Hierarchy:** Hindari penggunaan Card atau Surface dengan elevasi/shadow. Pisahkan folder, trek, dan kontrol playback hanya menggunakan  **spacing** (Spacer), teks dengan bobot berbeda (FontWeight.Bold vs FontWeight.Normal), dan garis tipis minimalis (HorizontalDivider(thickness = 0.5.dp)).  
--    
-- **Waveform / Slider:** Gunakan slider garis tipis 1px dengan handle bulat kecil sederhana untuk scrubber playback dan A-B loop marker.  
-   
-**Phase Flow**  
-Python  
-prd_content = """# Product Requirements Document (PRD)  
-## Proyek: Minimalist Offline Music Player & Audio Utility (Android Native)  
-   
-**Dokumen Versi:** 1.0.0    
-**Status:** Approved / Ready for Development    
-**Platform Target:** Android 10 (API Level 29) – Android 15+ (API Level 35)    
-**Bahasa & Framework:** Kotlin, Jetpack Compose, Jetpack Media3    
-**Format Dokumen:** Markdown (`PRD.md`)  
-   
----  
-   
-## 1. Executive Summary & Visi Produk  
-   
-Aplikasi ini adalah pemutar musik offline (*local audio player*) dan utilitas audio canggih berbasis Android Native (Kotlin) yang menggabungkan performa playback profesional, pemrosesan sinyal digital (*Digital Signal Processing* / DSP), pemindaian berkas berbasis folder, analisis audio otomatis (BPM, Key, Chord), serta editor metadata mendalam.  
-   
-Secara visual, produk ini mengusung filosofi desain **Ultra-Minimalist Monochrome**:  
-* **Zero Container / Zero Card Elevation**: Tidak menggunakan card elevated, bayangan (drop shadow), maupun container dekoratif berlapis.  
-* **Pure Monochrome**: Hanya menggunakan spektrum Hitam Murni (`#000000`), Putih Murni (`#FFFFFF`), dan Aksen Abu-abu Netral (`#757575`).  
-* **Typography-Driven & Whitespace Layout**: Pemisahan konten dan hierarki navigasi sepenuhnya diatur melalui bobot font (*FontWeight*), spasi terukur (*Spacer*), dan garis pembatas ultra-tipis (*Hairline Dividers*).  
-   
----  
-   
-## 2. Arsitektur Teknis & Tech Stack  
-   
-| Komponen | Pilihan Teknologi | Rasional & Peran |  
-| :--- | :--- | :--- |  
-| **Language** | Kotlin 2.0+ (Android Native) | Performa native, memory safety, interop C++ via JNI. |  
-| **UI Framework** | Jetpack Compose + Material 3 | Desain flat deklaratif tanpa container berat, dynamic scaling. |  
-| **Audio Playback Engine** | Jetpack Media3 (`ExoPlayer`) | Standard industri playback audio Android, gapless playback. |  
-| **Background Service** | `MediaSessionService` (Media3) | Background playback anti-kill, MediaSession, Lockscreen/Notif. |  
-| **DSP, Pitch & Speed** | `SonicAudioProcessor` (Media3) / `Sonic` | Real-time independent pitch shifting & tempo scaling. |  
-| **Equalizer Engine** | Android `AudioEffect` (DynamicsProcessing / Equalizer) | Multi-band parametric/graphic EQ & Bass Boost. |  
-| **Audio Analysis (BPM, Key, Chord)** | Native C++ via NDK (`Aubio` / `SoundTouch` / `FFTW`) | Spectral analysis, beat tracking, chroma feature extraction. |  
-| **Audio Trimming / Clipping** | `FFmpeg-Kit Android` / `MediaExtractor` + `MediaMuxer` | Fast lossless audio trimming (stream copy) tanpa re-encoding. |  
-| **Metadata Tagging** | `Jaudiotagger` + MediaStore API / SAF | Parsing & penulisan ID3v1, ID3v2.3/2.4, Vorbis, MP4/AAC tags. |  
-| **Local Database & Cache** | Android Jetpack Room DB | Penyimpanan playlist, tag kustom, cache BPM/Key/Chord, index folder. |  
-| **Storage Access** | MediaStore API + Storage Access Framework (SAF) | Kompatibel penuh dengan Scoped Storage Android 10 - 15+. |  
-   
----  
-   
-## 3. Desain Sistem & UI/UX Guidelines (Monokrom Flat)  
-   
-### 3.1. Palet Warna (Strict Monochrome)  
-* **Background Utama:** `#000000` (Amoled Black) atau `#FFFFFF` (Light Mode)  
-* **Teks Primer / Aksen Aktif:** `#FFFFFF` (Dark) / `#000000` (Light)  
-* **Teks Sekunder / Inaktif:** `#757575` (Neutral Gray)  
-* **Divider / Border:** `#222222` (Dark) / `#E0E0E0` (Light) dengan ketebalan `0.5.dp` - `1.dp`  
-* **Handle Slider & Playhead:** Circle putih pekat diameter `8.dp` tanpa glow/shadow.  
-   
-### 3.2. Layout Rules  
-* Dilarang menggunakan `Card`, `ElevatedCard`, atau `Surface(shadowElevation > 0)`.  
-* Navigasi berpindah menggunakan `TabRow` minimalis bergaris bawah tipis atau header teks datar.  
-* Indikator status (Play, Pause, Loop, Shuffle) menggunakan ikon outline geometris monokrom.  
-* Cover art album ditampilkan dalam rasio 1:1 tajam (*sharp corners*, no corner radius) atau border persegi tipis 1px.  
-   
----  
-   
-## 4. Rincian Spesifikasi Fitur  
-   
-### 4.1. Fitur 1: Storage Scanner & Directory Explorer  
-* **Deskripsi:** Memindai seluruh penyimpanan internal dan microSD untuk mengekstrak berkas audio yang valid.  
-* **Format Audio yang Didukung:** `.mp3`, `.wav`, `.flac`, `.m4a`, `.aac`, `.ogg`, `.opus`.  
-* **Mekanisme Folder-Based Display:**  
-  * Mengelompokkan berkas berdasarkan direktori fisik tempat audio disimpan (misal: `/Music/Rock`, `/Download/TelegramAudio`).  
-  * Menampilkan jumlah folder yang memiliki minimal 1 berkas audio valid.  
-  * Menampilkan struktur folder root, nama folder, total durasi isi folder, dan jumlah berkas di dalamnya.  
-  * Real-time ContentObserver: Memperbarui daftar lagu otomatis saat ada file baru ditambahkan atau dihapus dari penyimpanan.  
-   
-### 4.2. Fitur 2: Basic Playback Controller  
-* **Core Playback Functions:**  
-  * `Play`, `Pause`, `Stop`.  
-  * `Next` / `Previous` (dengan batas 3 detik untuk restart lagu atau pindah track).  
-  * `Fast Forward` & `Rewind` (step interval: 5s, 10s, 30s yang dapat dikonfigurasi).  
-  * `Seekbar / Scrubber` linear ultra-tipis dengan tampilan waktu *elapsed* vs *remaining/total*.  
-* **Queue & Playback Modes:**  
-  * Manajemen antrean lagu (*Up Next*), *drag-and-drop reordering*, dan *swipe-to-remove*.  
-  * **Shuffle Mode:** True random dengan history buffer untuk mencegah pemutaran ulang lagu yang sama sebelum antrean habis.  
-  * **Loop Modes (3 Mode Toggle):**  
-    1. `Loop All` (mengulang seluruh antrean).  
-    2. `Loop Current` / Single Repeat (mengulang lagu yang sedang aktif terus-menerus).  
-    3. `No Loop` / Stop at Queue End.  
-* **Volume Integration:** Slider volume internal independen serta sinkronisasi dengan hardware audio stream Android (`STREAM_MUSIC`).  
-   
-### 4.3. Fitur 3: Advanced Playback & DSP Control  
-* **Playback Speed:** Pengaturan kecepatan `0.25x` hingga `3.00x` (step `0.05x`) tanpa distorsi nada (time stretching).  
-* **Pitch Shifter:** Mengubah nada audio dari `-12 semitone` hingga `+12 semitone` (step 1 semitone / 10 cents) terpisah dari kecepatan pemutaran.  
-* **Equalizer (EQ):**  
-  * 5-band / 10-band Graphic Equalizer (tergantung kapabilitas hardware DSP perangkat).  
-  * Presets: *Flat, Bass Boost, Treble Boost, Vocal, Acoustic, Rock, Electronic, Custom*.  
-  * Virtualizer & Loudness Enhancer slider.  
-* **A-B Loop (Precision Looper):**  
-  * Menandai Point A (Start) dan Point B (End) pada milidetik presisi.  
-  * Pemutar otomatis melompat kembali ke Point A saat mencapai Point B.  
-  * Fitur Clear A-B Loop untuk kembali ke mode normal.  
-   
-### 4.4. Fitur 4: File Management & Library Organization  
-* **Kategori Organisasi:**  
-  * *Favorites (Sistem Bintang/Heart Monokrom)*.  
-  * *Custom Playlists* (Buat, ubah nama, urutkan, ekspor/impor `.m3u` / `.m3u8`).  
-  * *Tags Kustom* (label kustom lokal yang disimpan di Room DB, misal: `#Study`, `#Workout`, `#AcousticVibe`).  
-* **Operasi File Fisik (Scoped Storage Compliant):**  
-  * **Rename:** Mengubah nama berkas fisik dan menyinkronkan kembali dengan MediaStore.  
-  * **Delete:** Menghapus berkas fisik permanen dari penyimpanan lokal (menggunakan `MediaStore.createDeleteRequest` di Android 11+).  
-  * **Move / Copy:** Memindahkan file antar direktori melalui SAF / DocumentFile.  
-   
-### 4.5. Fitur 5: Metadata Listener / Audio Inspector  
-* Ekstraksi dan penayangan metadata lengkap dari header berkas audio:  
-  * Nama Berkas (*Filename*) & Ekstensi.  
-  * Title, Artist, Contributing Artists / Composers, Album, Album Artist.  
-  * Durasi, Bitrate (kbps), Sample Rate (Hz), Channels (Stereo/Mono), Format Codec.  
-  * Embedded Cover Art (mengekstrak gambar album beresolusi penuh).  
-  * Lirik Lagu (*Synchronized LRC* dan *Unsynced Plain Text*).  
-  * Genre & Release Year / Date.  
-   
-### 4.6. Fitur 6: Background Playback & Battery Optimization Lifecycle  
-* **Background Service (`MediaSessionService`):**  
-  * Berjalan secara persisten di latar belakang sebagai *Foreground Service* dengan `NotificationCompat.MediaStyle`.  
-  * Kontrol notifikasi: Play, Pause, Next, Prev, Favorite, Seekbar, dan Cover Art.  
-  * Integrasi penuh dengan Android MediaSession (kompatibel dengan Bluetooth Headset, Android Auto, Lockscreen, Smartwatch).  
-  * Audio Focus Handling: Otomatis pause saat telepon masuk, ducking saat ada navigasi/notifikasi, resume saat panggilan berakhir.  
-* **Battery Optimization Management:**  
-  * Dialog eksplisit untuk meminta izin pengecualian optimasi baterai (`ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS`) agar service tidak dimatikan oleh OEM custom OS (MIUI/HyperOS, ColorOS, OneUI).  
-   
-### 4.7. Fitur 7: Audio Signal Analysis (BPM, Key, Chord Detection)  
-* **BPM / Tempo Detector:**  
-  * Menghitung nilai tempo lagu (*Beats Per Minute*) secara otomatis menggunakan algoritma onset detection / peak energy filtering via C++ (Aubio/SoundTouch).  
-  * Menampilkan angka BPM pada detail lagu dan player view.  
-* **Musical Key & Scale Detector:**  
-  * Ekstraksi pitch chroma profile untuk mendeteksi tangga nada dasar (misal: `C Major`, `A Minor`, `F# Minor`).  
-* **Chord Progression Detector:**  
-  * Analisis real-time atau pre-computed harmonic pitch class profiles (HPCP) untuk memprediksi progresi akor yang sedang dimainkan pada rentang waktu tertentu.  
-* **Hasil Analisis:** Disimpan ke Room DB agar proses kalkulasi FFT/DSP berat hanya berjalan satu kali per berkas.  
-   
-### 4.8. Fitur 8: Audio Clipper & Trimmer  
-* **Visual Trimming UI:**  
-  * Waveform viewer monokrom dengan dual draggable handles (Marker Start & Marker End).  
-  * Preview audio khusus pada rentang waktu yang di-klip.  
-  * Input waktu manual dalam format `MM:SS.mmm`.  
-* **Exporting / Saving:**  
-  * Opsi 1: Lossless Stream Copy (ekspor instan tanpa re-encoding menggunakan `MediaMuxer` / `FFmpeg`).  
-  * Opsi 2: Encode kustom (.mp3, .wav, .m4a) dengan pilihan bitrate (128k, 192k, 320k).  
-  * Menyimpan salinan baru ke folder tujuan (`/Music/Clipped/`) tanpa merusak file asli.  
-   
-### 4.9. Fitur 9: Metadata & ID3 Tag Editor  
-* **Field yang Dapat Diedit:**  
-  * Title, Artist, Album, Genre, Year, Track Number, Disc Number, Composer, Comments.  
-  * Lirik lagu (Input lirik manual atau load file `.lrc` eksternal).  
-  * Cover Art: Mengganti gambar album dengan foto dari galeri atau menghapus cover art bawaan.  
-* **Penyimpanan:**  
-  * Menulis langsung tag ID3v2.4 / Vorbis Comment / MP4 Atom ke dalam biner berkas audio melalui library native.  
-  * Memperbarui index Android `MediaStore` pasca-penulisan agar perubahan langsung terbaca di seluruh sistem.  
-   
----  
-   
-## 5. Skema Basis Data Lokal (Room Database)  
-   
-### 5.1. Entity: `AudioTrackEntity`  
-* `id`: Long (Primary Key, MediaStore ID)  
-* `filePath`: String (Absolute Path)  
-* `folderPath`: String (Directory Path)  
-* `fileName`: String  
-* `title`: String  
-* `artist`: String  
-* `album`: String  
-* `durationMs`: Long  
-* `mimeType`: String  
-* `bitrate`: Int  
-* `sampleRate`: Int  
-* `genre`: String?  
-* `year`: Int?  
-* `hasEmbeddedLyrics`: Boolean  
-* `bpm`: Float? (Cached Analysis)  
-* `musicalKey`: String? (Cached Analysis)  
-* `isFavorite`: Boolean (Default: false)  
-* `customTags`: String (JSON Array / Comma Separated)  
-* `dateAdded`: Long  
-* `dateModified`: Long  
-   
-### 5.2. Entity: `PlaylistEntity` & `PlaylistTrackCrossRef`  
-* `playlistId`: Long (PK, Auto-Generate)  
-* `playlistName`: String  
-* `createdAt`: Long  
-* `trackOrder`: Int (di cross-ref table)  
-   
-### 5.3. Entity: `AudioAnalysisCacheEntity`  
-* `trackId`: Long (PK, Foreign Key to AudioTrackEntity)  
-* `chordDataJson`: String (Timestamped Chords: `[{"time": 0.0, "chord": "C"}, ...]`)  
-* `waveformSamples`: ByteArray (Pre-calculated peak samples for quick waveform rendering)  
-   
----  
-   
-## 6. Persyaratan Non-Fungsional (NFR)  
-   
-* **Latency Audio:** Seek latency < 50ms untuk file lokal; DSP effect switching latency < 20ms.  
-* **Performa CPU & Baterai:** Analisis BPM/Chord dijalankan di Background Dispatcher (`Dispatchers.Default` / WorkManager) agar UI thread tetap stabil di 60/120 FPS.  
-* **Memory Management:** Thumbnail cover art dan waveform di-cache menggunakan *LRU Cache* dan *Coil Compose* untuk mencegah `OutOfMemoryError` (OOM) saat membuka folder dengan ribuan lagu.  
-* **Kompatibilitas Android:** Mendukung Android 10 (Q) hingga Android 15 (Vanilla Ice Cream) dengan kepatuhan penuh terhadap MediaStore Scoped Storage dan runtime permissions (`READ_MEDIA_AUDIO`, `POST_NOTIFICATIONS`).  
-   
----  
-   
-## 7. Roadmap Implementasi  
-   
-   
-Code output  
-File PRD.md created successfully!  
-   
-   
-Phase 1: Pondasi & Basic Engine  
-├── Inisialisasi Project (Jetpack Compose + Monokrom Theme Setup)  
-├── MediaStore Scanner & Room Database Sync (Folder-based Grouping)  
-└── Jetpack Media3 (ExoPlayer + MediaSessionService Background Playback)  
-   
-Phase 2: Advanced DSP & File Operations  
-├── SonicAudioProcessor Integration (Speed & Pitch Shifting)  
-├── Equalizer & A-B Looping Controller  
-└── File Operations (Favorite, Playlist, Tags, Scoped Storage SAF Rename/Delete)  
-   
-Phase 3: Metadata & Utility  
-├── Jaudiotagger Integration (Metadata Inspector & Tag Editor)  
-├── Audio Trimming Engine (FFmpeg-Kit / MediaMuxer Lossless Clipper)  
-└── Lyrics Viewer (Synced LRC parser)  
-   
-Phase 4: DSP Analysis (BPM, Key, Chord) & Polish  
-├── NDK C++ Aubio/SoundTouch Integration via JNI  
-├── BPM & Musical Key Detection Engine  
-├── Chord Progression Analyzer  
-└── UI Clean-up, Monokrom Polish, & Performance Benchmark  
-   
-   
-   
-### **Ringkasan Cakupan Dokumen PRD:**  
-Dokumen **PRD.md** telah disusun secara komprehensif mencakup seluruh spesifikasi teknis dan fungsional yang kamu butuhkan:  
-   
-1. **Visi & Desain Sistem:**  
-2.    
-  - Panduan styling **Ultra-Minimalist Monochrome** (pure black #000000, white #FFFFFF, neutral gray #757575).  
-  -    
-  - Prinsip layout flat tanpa container/card elevated dan berbasis tipografi murni.  
-  -    
-3. **Arsitektur Teknis:**  
-4.    
-  - Kotlin Native + Jetpack Compose + Jetpack Media3 (MediaSessionService + ExoPlayer).  
-  -    
-  - Integrasi DSP via SonicAudioProcessor (Speed & Pitch) dan Android AudioEffect (Equalizer).  
-  -    
-  - Audio Analysis (BPM, Key, Chord) berbasis C++ NDK (Aubio / SoundTouch).  
-  -    
-  - Tag Editor & Clipper via Jaudiotagger dan FFmpeg-Kit/MediaMuxer.  
-  -    
-5. **Spesifikasi 9 Fitur Utama:**  
-6.    
-  - **Storage Scanner:** Pengelompokan berbasis folder fisik secara otomatis dan sinkronisasi real-time.  
-  -    
-  - **Basic Playback:** Kontrol lengkap, antrean (*Up Next*), shuffle cerdas, dan 3 mode loop.  
-  -    
-  - **Advanced DSP:** Speed 0.25x–3.0x, Pitch shifting -12 s.t s/d +12 s.t, Multi-band EQ, dan Precision A-B Looper.  
-  -    
-  - **File Management:** Favorite, Playlist, Custom Tags, serta Rename/Delete/Move kompatibel Scoped Storage.  
-  -    
-  - **Metadata Listener:** Ekstraksi spesifikasi teknis, cover art, dan synced LRC lyrics.  
-  -    
-  - **Background Playback:** MediaSessionService anti-kill, MediaStyle notification, lockscreen, dan dialog whitelist optimasi baterai.  
-  -    
-  - **Audio Analysis:** Deteksi BPM, Musical Key, dan Progresi Akor dengan sistem cache.  
-  -    
-  - **Audio Clipper:** Visual waveform trimmer dengan opsi ekspor lossless stream-copy atau re-encode.  
-  -    
-  - **Metadata Editor:** Penulisan langsung ID3v2.4 / Vorbis tags ke biner file.  
-  -    
-7. **Skema Database Lokal:** Desain tabel Room DB (AudioTrackEntity, PlaylistEntity, AudioAnalysisCacheEntity).  
-8.    
-9. **Roadmap Pengembangan:** Rencana 4 fase implementasi dari fondasi hingga tahap optimasi DSP.  
-   
+<div align="center">
+
+# VOX
+
+**Ultra-Minimalist Monochrome Offline Music Player & Audio Signal Processing Utility for Android**
+
+[![Platform](https://img.shields.io/badge/Platform-Android%2010%20--%2015-000000.svg?style=for-the-badge&logo=android&logoColor=white)](https://android.com)
+[![Kotlin](https://img.shields.io/badge/Kotlin-2.0.21-000000.svg?style=for-the-badge&logo=kotlin&logoColor=white)](https://kotlinlang.org)
+[![Compose](https://img.shields.io/badge/Jetpack%20Compose-2024.10.01-000000.svg?style=for-the-badge&logo=jetpackcompose&logoColor=white)](https://developer.android.com/jetpack/compose)
+[![Media3](https://img.shields.io/badge/Jetpack%20Media3-1.4.1-000000.svg?style=for-the-badge&logo=android&logoColor=white)](https://developer.android.com/media/media3)
+[![NDK](https://img.shields.io/badge/C%2B%2B%20NDK-CMake%203.22-000000.svg?style=for-the-badge&logo=c%2B%2B&logoColor=white)](https://developer.android.com/ndk)
+[![License](https://img.shields.io/badge/License-Apache%202.0-000000.svg?style=for-the-badge)](LICENSE)
+
+[**Download APK (v1.0.0)**](Vox_stable_v1.0.0.apk) • [**Fitur**](#-fitur-utama) • [**Spesifikasi Teknis**](#-spesifikasi-teknis) • [**Teknologi & Library**](#-teknologi--library) • [**Arsitektur & Flow**](#-arsitektur--data-flow) • [**Release Notes**](#-release-notes-v100)
+
+</div>
+
+---
+
+## 📖 Deskripsi Aplikasi
+
+**Vox** adalah aplikasi pemutar musik offline (*local audio player*) dan instrumen pemrosesan sinyal digital (*Digital Signal Processing* / DSP) berkinerja tinggi untuk platform Android. Dirancang untuk musisi, produser, audiophile, dan pendengar yang mendambakan pemutar musik tanpa distraksi, Vox menggabungkan mesin pemutaran audio profesional, ekstraksi sinyal audio native (BPM, Musical Key, Harmonic Chords), visual waveform trimmer, serta editor metadata ID3 terpadu.
+
+### 🎨 Filosofi Desain (Ultra-Minimalist Monochrome)
+* **Zero Container / Zero Card Elevation**: Tidak menggunakan card elevated, bayangan (*drop shadows*), gradasi warna mencolok, ataupun container berlapis yang membebani mata.
+* **Pure Monochrome Spectrum**: Menggunakan warna fungsional AMOLED Black (`#000000`), Pure White (`#FFFFFF`), Neutral Gray (`#757575`), Hairline Dark Divider (`#222222`), dan Light Divider (`#E0E0E0`).
+* **Typography-Driven & Mathematical Rhythm**: Hirarki visual dibangun menggunakan kontras bobot tipografi (*FontWeight*), spasi terukur (*8-Point Grid System*), dan *Hairline Dividers* (`0.5.dp`).
+* **Sharp 1:1 Corners**: Cover art dan komponen grafis dirender dalam rasio 1:1 tajam (*zero corner radius*).
+* **Lucide Vector Icons**: Seluruh set ikon antarmuka ditenagai oleh icon set presisi monokrom Lucide.
+
+---
+
+## ✨ Fitur Utama
+
+### 1. Storage Scanner & Folder-Based Explorer
+* **Folder Structure Navigation**: Pengelompokan berkas audio otomatis berdasarkan direktori penyimpanan fisik di internal storage maupun kartu SD (microSD).
+* **Format Audio Universal**: Mendukung `.mp3`, `.flac`, `.wav`, `.m4a`, `.aac`, `.ogg`, dan `.opus`.
+* **Real-time MediaStore Sync**: Dilengkapi `ContentObserver` untuk menyinkronkan daftar lagu secara otomatis saat berkas ditambah, dipindahkan, atau dihapus dari penyimpanan perangkat.
+
+### 2. Core Playback Engine & Queue Management
+* **Gapless Playback**: Pemutaran mulus tanpa jeda antar trek menggunakan mesin **Jetpack Media3 ExoPlayer**.
+* **Smart Shuffle**: Algoritma True Random dengan *History Buffer* yang memastikan seluruh antrean diputar tanpa pengulangan trek yang sama sebelum selesai.
+* **3-State Repeat Mode**: Beralih fleksibel antara *Loop All*, *Loop Current (Single Repeat)*, dan *No Loop*.
+* **Precision Seekbar**: Scrubber linier ultra-tipis dengan tampilan waktu milidetik akurat.
+
+### 3. DSP Engine: Speed & Pitch Shifter
+* **Sonic Audio Processor**: Pengaturan kecepatan pemutaran (*Playback Speed*) dari `0.25x` hingga `3.00x` (step `0.05x`) dengan teknologi *Time Stretching* tanpa merusak pitch nada.
+* **Independent Pitch Shifter**: Mengubah tangga nada audio dari `-12 semitone` hingga `+12 semitone` (step 1 semitone / 10 cents) secara terpisah dari kecepatan pemutaran lagu.
+* **Quick Preset Chips**: Tombol pintas cepat untuk oktaf, normalisasi, dan kecepatan standar.
+
+### 4. Graphic Equalizer & Acoustic Enhancer
+* **Multi-band Equalizer**: Pengaturan frekuensi grafis dengan kontrol responsif berbasis Android `AudioEffect`.
+* **Acoustic Modules**: Dilengkapi *Bass Boost*, *Spatial Virtualizer*, dan *Loudness Enhancer*.
+* **Presets Engine**: Pilihan konfigurasi cepat (*Flat, Bass Boost, Vocal, Acoustic, Rock, Electronic, Treble, Custom*).
+
+### 5. Precision A-B Looper
+* Penandaan **Point A** dan **Point B** berpresisi milidetik untuk mengulang bagian tertentu dari lagu secara otomatis tanpa jeda (sangat ideal untuk latihan instrumen musik, transkripsi, atau belajar lirik).
+* Visual marker terintegrasi langsung pada waveform scrubber.
+
+### 6. NDK C++ Audio Signal Analysis (`libvox-dsp.so`)
+* **BPM / Tempo Extraction**: Menghitung ketukan per menit (*Beats Per Minute*) secara otomatis menggunakan spectral onset detection dan autocorrelation filter di layer native C++.
+* **Musical Key & Scale Detection**: Deteksi tangga nada dasar lagu (misal: *C Major, A Minor, F# Minor*) melalui ekstraksi 12-bin Pitch Chroma Profile.
+* **Real-time Chord Progression Tracker**: Algoritma Harmonic Pitch Class Profiles (HPCP) berbasis windowed FFT untuk memetakan akor lagu (*Major, Minor, 7th, Diminished, Augmented*) dan divisualisasikan secara sinkron dengan posisi playback.
+* **High-Performance Room DB Caching**: Hasil analisis sinyal disimpan di basis data lokal sehingga proses DSP berat hanya berjalan 1 kali per berkas.
+
+### 7. ID3 Tag & Binary Metadata Editor
+* **Tag Editing Lengkap**: Baca dan tulis field Title, Artist, Album, Album Artist, Genre, Year, Track Number, Disc Number, Composer, dan Comment.
+* **Cover Art Embedding**: Ekstraksi dan penyematan cover art baru (JPEG/PNG) langsung ke dalam header biner file audio (.mp3, .flac, .m4a, .ogg) via mesin **Jaudiotagger**.
+* **Scoped Storage Write Consent**: Alur kepatuhan `MediaStore.createWriteRequest` untuk Android 11+ (API 30+).
+
+### 8. Fast Lossless Audio Clipper & Trimmer
+* **Lossless Fast Trimming**: Pemotongan audio instan (< 1 detik) tanpa re-encoding menggunakan `MediaExtractor` dan `MediaMuxer` (stream-copy).
+* **Custom Encoder**: Opsi ekspor ke format `.mp3`, `.wav`, atau `.m4a` dengan pilihan bitrate `128 kbps`, `192 kbps`, atau `320 kbps`.
+* **Visual Waveform Preview**: Draggable range marker dengan preview playback khusus pada rentang klip.
+
+### 9. Synced Lyrics Viewer (LRC Parser)
+* **Dual Lyrics Reader**: Membaca berkas `.lrc` eksternal di folder lagu dan tag lirik tersemat (*Embedded USLT/SYLT*).
+* **Real-time Lyrics Sync**: Sinkronisasi baris lirik aktif dengan *Smooth Auto-Scrolling* dan animasi transisi warna tipografi.
+* **Seek-by-Lyric**: Lompat (*seek*) ke bagian lagu secara instan hanya dengan mengetuk baris lirik yang diinginkan.
+
+### 10. Persistent Background Playback & Android Auto
+* **Foreground Service**: Berjalan stabil di latar belakang dengan `MediaSessionService` dan integrasi notifikasi sistem `NotificationCompat.MediaStyle`.
+* **Audio Focus & Headset Integration**: Pause otomatis saat panggilan masuk, audio ducking saat navigasi GPS, dan kontrol tombol headset Bluetooth.
+* **Battery Whitelist Prompt**: Dialog izin pengabaian optimasi baterai OEM agar service audio tidak dimatikan paksa di latar belakang.
+
+---
+
+## 🛠️ Spesifikasi Teknis
+
+| Parameter | Spesifikasi |
+| :--- | :--- |
+| **Target OS** | Android 10 (API 29) s/d Android 15 (API 35+) |
+| **Minimum SDK** | API Level 29 (Android 10) |
+| **Bahasa Pemrograman** | **Kotlin** 2.0.21 & **C++17** (NDK) |
+| **Java Virtual Machine** | Java 21 / JVM Target 21 |
+| **Build Tool** | Gradle 8.11.1 (Kotlin DSL `build.gradle.kts` + Version Catalog `libs.versions.toml`) |
+| **Native Build System** | CMake 3.22.1 + Android NDK 27+ |
+| **Pola Arsitektur** | Modern Clean Architecture + MVI (Model-View-Intent) + Unidirectional Data Flow |
+| **Dependency Injection** | Dagger Hilt 2.52 |
+| **Desain Antarmuka** | Jetpack Compose + Material 3 + Lucide Icons |
+| **Ukuran APK Rilis** | ~56 MB (Termasuk Native C++ DSP Binaries untuk arm64-v8a, armeabi-v7a, x86_64) |
+
+---
+
+## 📦 Teknologi & Library
+
+### Core & Framework
+* **[Kotlin](https://kotlinlang.org/)**: Bahasa utama dengan Kotlin Coroutines & StateFlow untuk reactive state management.
+* **[Jetpack Compose](https://developer.android.com/jetpack/compose)**: UI toolkit deklaratif Android modern.
+* **[Dagger Hilt](https://dagger.dev/hilt/)**: Dependency Injection terstruktur untuk seluruh service, repository, dan ViewModel.
+
+### Audio & Signal Processing
+* **[Jetpack Media3 (ExoPlayer)](https://developer.android.com/media/media3)**: Audio playback engine, MediaSessionService, queue manager, dan buffer handler.
+* **Sonic Audio Processor**: Time-stretch audio speed scaling dan pitch shifting.
+* **Android NDK & C++ (`libvox-dsp.so`)**: Native DSP engine untuk AMediaExtractor PCM decoding, autocorrelation onset tracking, dan 12-bin HPCP chromagram.
+* **Android `AudioEffect`**: Equalizer multi-band, Bass Boost, Virtualizer, dan Loudness Enhancer.
+
+### Storage, Database & Metadata
+* **[AndroidX Room](https://developer.android.com/training/data-storage/room)**: Basis data lokal SQLite dengan Room KSP Compiler untuk cache trek, folder, playlist, tag kustom, dan chord data.
+* **[Jaudiotagger](http://www.jthink.net/jaudiotagger/)**: Engine manipulasi biner audio tags (ID3v1, ID3v2.3, ID3v2.4, Vorbis, MP4 atoms, USLT/SYLT, Cover Art).
+* **Android MediaStore API & SAF**: Akses Scoped Storage dengan `createWriteRequest` dan `createDeleteRequest`.
+
+### UI Assets & Utilities
+* **[Lucide Icons for Compose](https://github.com/composables/icons-lucide-android)**: Kumpulan icon vector monokrom presisi.
+* **[Coil Compose](https://coil-kt.github.io/coil/)**: Asynchronous image loader berkinerja tinggi dengan memory/disk cache untuk album artwork.
+
+---
+
+## 🏗️ Arsitektur & Data Flow
+
+Vox mengimplementasikan arsitektur **Clean Architecture** dengan pola **MVI (Model-View-Intent)** yang menjamin pemisahan tanggung jawab (*separation of concerns*) dan aliran data satu arah (*Unidirectional Data Flow*):
+
+```mermaid
+flowchart TD
+    subgraph UI_Layer [UI Presentation Layer - Jetpack Compose & Lucide Icons]
+        PlayerScreen[Player & DSP Controller Screen]
+        LibraryScreen[Library & Folder Explorer Screen]
+        EqualizerScreen[Equalizer & Acoustic Screen]
+        ClipperScreen[Lossless Clipper & Trimmer Screen]
+        MetadataScreen[ID3 Tag Editor Screen]
+        LyricsScreen[Synced LRC Lyrics Screen]
+    end
+
+    subgraph MVI_Layer [ViewModel & StateFlow Reducer]
+        PlayerViewModel[PlayerViewModel - Playback Intent Reducer]
+        LibraryViewModel[LibraryViewModel - Library Intent Reducer]
+    end
+
+    subgraph Domain_Core_Layer [Domain & Core Repositories]
+        PlayerController[PlayerController - MediaController StateFlow]
+        AudioScanner[AudioScanner - MediaStore & ContentObserver]
+        AudioAnalysisRepo[AudioAnalysisRepository - DSP Manager]
+        TagEditorRepo[TagEditorRepository - Jaudiotagger Engine]
+        ClipperRepo[AudioClipperRepository - MediaMuxer Lossless]
+    end
+
+    subgraph Service_Native_Layer [System Services & Hardware DSP]
+        Media3Service[MediaPlaybackService - Foreground Service & MediaSession]
+        NativeDspEngine[NativeDspEngine - C++ JNI libvox-dsp.so]
+        SonicProcessor[SonicAudioProcessor - Pitch & Speed]
+        RoomDB[(Room Database - SQLite & Cache)]
+    end
+
+    UI_Layer -->|Dispatches User Intents| MVI_Layer
+    MVI_Layer -->|Exposes Immutable UI StateFlow| UI_Layer
+    MVI_Layer -->|Calls UseCases / Repositories| Domain_Core_Layer
+    PlayerController <-->|IPC Binder & Media3 Controller| Media3Service
+    Media3Service --> SonicProcessor
+    AudioAnalysisRepo <--> NativeDspEngine
+    AudioScanner <--> RoomDB
+    TagEditorRepo <--> RoomDB
+```
+
+---
+
+## 🚀 Instalasi & Build dari Source
+
+### 1. Download File APK Siap Pakai
+Unduh berkas instalasi APK resmi yang telah dikompilasi langsung di root repositori:
+* 📥 [**`Vox_stable_v1.0.0.apk`**](Vox_stable_v1.0.0.apk) (Versi rilis 1.0.0, arsitektur `arm64-v8a`, `armeabi-v7a`, `x86_64`).
+
+### 2. Kompilasi Sendiri dari Source Code
+Pastikan Anda telah menginstal **Android Studio Ladybug (2024.2+)**, **JDK 21**, dan **Android NDK (r27+)**.
+
+```bash
+# 1. Clone repositori
+git clone git@github.com:imanecdoche/voxplayer.git
+cd voxplayer
+
+# 2. Periksa dependensi dan kompilasi debug
+./gradlew compileDebugKotlin
+
+# 3. Bangun paket APK Release
+./gradlew assembleRelease
+
+# 4. Berkas APK hasil build akan tersedia di:
+# app/build/outputs/apk/release/app-release.apk
+```
+
+---
+
+## 📋 Release Notes (v1.0.0)
+
+### 🌟 Vox v1.0.0 — Official Stable Production Release
+* **Ultra-Minimalist Monochrome UI**: Desain antarmuka flat berbasis tipografi murni, bebas container kartu elevated, dengan palet warna hitam AMOLED (`#000000`) dan putih (`#FFFFFF`).
+* **Lucide Iconography**: Integrasi penuh icon set vektor Lucide untuk seluruh navigasi, kontrol player, scrubber looper, dan alat utilitas.
+* **Jetpack Media3 & Background Engine**: Pemutaran audio offline gapless dengan background playback persisten dan MediaStyle notification.
+* **Sonic Speed & Pitch Shifter**: Pengaturan kecepatan `0.25x` s/d `3.00x` dan pitch shifting `-12` s/d `+12` semitone independen secara real-time.
+* **Multi-band Equalizer & Acoustic FX**: Equalizer grafis, bass boost, virtualizer, loudness enhancer, dan preset suara.
+* **Precision A-B Looping**: Penandaan titik A dan B berpresisi milidetik dengan indikator visual langsung pada scrubber.
+* **Native C++ DSP Engine (`libvox-dsp.so`)**:
+  - Deteksi otomatis BPM (Beats Per Minute) berbasis onset energy autocorrelation.
+  - Deteksi Tangga Nada Dasar (*Musical Key*) dengan 12-bin Pitch Chroma Profile.
+  - Tracker progresi akor real-time (*HPCP Windowed Chromagram*) dengan visualizer sinkron.
+* **ID3 Tag Editor & Binary Artwork**: Editor metadata ID3 lengkap dengan penyematan cover art JPEG/PNG dan kepatuhan Scoped Storage Android 11+.
+* **Fast Lossless Audio Clipper**: Pemotongan audio tanpa proses re-encoding (< 1 detik) serta opsi kustom bitrate ekspor.
+* **Synced LRC Lyrics**: Penampil lirik sinkron otomatis dengan fitur tap-to-seek playback.
+
+---
+
+<div align="center">
+  <sub>Dikembangkan dengan presisi arsitektur Android Native modern oleh <b>imanecdoche</b>.</sub>
+</div>

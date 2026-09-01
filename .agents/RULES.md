@@ -37,3 +37,4 @@ Dokumen ini merupakan acuan utama dan mutlak untuk proyek **Vox (Minimalist Offl
    - **Phase 4 Step 13**: Final UI Polish, Memory & Battery Benchmark, Bug Fixing, and Build Production APK (`Vox_stable_v1.0.0.apk`). (DONE)
    - **Extension Step 14**: Lucide Icons for Compose integration (`com.composables:icons-lucide-android:2.2.1` / `com.composables:icons-lucide:2.2.1`), full icon set refactor (Player, Scrubber, Looper, Library, Equalizer, Clipper, Tag Editor, Lyrics, Analysis, Actions) with pure monochrome styling. (DONE)
    - **Instruction / Remote Sync**: Remote Git repository `git@github.com:imanecdoche/voxplayer.git` configured with root APK (`Vox_stable_v1.0.0.apk`) tracking and staging. (DONE)
+   - **Instruction / README & Release**: Comprehensive README.md rewrite (Deskripsi app, spesifikasi teknis, fitur, teknologi, library, arsitektur/flow), Git staging & commit, serta publikasi GitHub Release Notes v1.0.0. (DONE)
