@@ -62,8 +62,9 @@ class MainActivity : ComponentActivity() {
                         // Library Content (Fills screen)
                         LibraryScreen(
                             viewModel = libraryViewModel,
-                            onTrackSelected = { track ->
-                                playerViewModel.playSingleTrack(track)
+                            onTrackSelected = { track, queueTracks ->
+                                val startIndex = queueTracks.indexOfFirst { it.id == track.id }.coerceAtLeast(0)
+                                playerViewModel.playTracks(queueTracks, startIndex)
                             },
                             modifier = Modifier.fillMaxSize()
                         )

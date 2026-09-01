@@ -32,10 +32,18 @@ import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.vox.music.ui.components.HairlineDivider
@@ -43,6 +51,10 @@ import com.vox.music.ui.theme.VoxTheme
 import kotlin.math.roundToInt
 
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.TextButton
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
@@ -51,6 +63,8 @@ fun SpeedPitchSheet(
     pitchSemitones: Int,
     pointA: Long? = null,
     pointB: Long? = null,
+    sleepTimerRemainingMs: Long? = null,
+    isSleepTimerEndOfTrack: Boolean = false,
     onSpeedChange: (Float) -> Unit,
     onPitchChange: (Int) -> Unit,
     onSetPointA: () -> Unit = {},
@@ -59,14 +73,91 @@ fun SpeedPitchSheet(
     onResetSpeed: () -> Unit,
     onResetPitch: () -> Unit,
     onResetAll: () -> Unit,
+    onStartSleepTimer: (Int) -> Unit = {},
+    onStartSleepTimerEndOfTrack: () -> Unit = {},
+    onCancelSleepTimer: () -> Unit = {},
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val scrollState = rememberScrollState()
 
+    var showCustomTimerDialog by remember { mutableStateOf(false) }
+    var customMinutesInput by remember { mutableStateOf("") }
+
     val speedPresets = listOf(0.50f, 0.75f, 0.90f, 1.00f, 1.10f, 1.25f, 1.50f, 2.00f)
     val pitchPresets = listOf(-12, -7, -2, -1, 0, 1, 2, 7, 12)
+    val timerPresets = listOf(15, 30, 45, 60)
+
+    if (showCustomTimerDialog) {
+        AlertDialog(
+            onDismissRequest = { showCustomTimerDialog = false },
+            containerColor = MaterialTheme.colorScheme.background,
+            shape = RoundedCornerShape(16.dp),
+            title = {
+                Text(
+                    text = "CUSTOM SLEEP TIMER",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onBackground
+                )
+            },
+            text = {
+                Column {
+                    Text(
+                        text = "Enter duration in minutes:",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = VoxTheme.colors.subtleText
+                    )
+                    Spacer(modifier = Modifier.height(10.dp))
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(44.dp)
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(MaterialTheme.colorScheme.surfaceVariant)
+                            .padding(horizontal = 12.dp),
+                        contentAlignment = Alignment.CenterStart
+                    ) {
+                        BasicTextField(
+                            value = customMinutesInput,
+                            onValueChange = { newText ->
+                                val digits = newText.filter { it.isDigit() }
+                                customMinutesInput = if (digits.length > 3) digits.substring(0, 3) else digits
+                            },
+                            textStyle = TextStyle(
+                                color = MaterialTheme.colorScheme.onBackground,
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Bold
+                            ),
+                            cursorBrush = SolidColor(MaterialTheme.colorScheme.onBackground),
+                            singleLine = true,
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        val mins = customMinutesInput.toIntOrNull() ?: 0
+                        if (mins > 0) {
+                            onStartSleepTimer(mins)
+                        }
+                        showCustomTimerDialog = false
+                    }
+                ) {
+                    Text("START", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showCustomTimerDialog = false }) {
+                    Text("CANCEL", color = VoxTheme.colors.subtleText)
+                }
+            }
+        )
+    }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -89,7 +180,7 @@ fun SpeedPitchSheet(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "DSP AUDIO PROCESSOR",
+                    text = "DSP & AUDIO CONTROLS",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onBackground,
@@ -422,6 +513,114 @@ fun SpeedPitchSheet(
                         text = bText,
                         style = MaterialTheme.typography.labelSmall,
                         fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(20.dp))
+            HairlineDivider()
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // ==================== SLEEP TIMER MODULE ====================
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "SLEEP TIMER",
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = VoxTheme.colors.subtleText
+                )
+
+                if (sleepTimerRemainingMs != null || isSleepTimerEndOfTrack) {
+                    val statusText = if (isSleepTimerEndOfTrack) {
+                        "End of Track"
+                    } else {
+                        val secs = (sleepTimerRemainingMs ?: 0L) / 1000
+                        "%02d:%02d".format(secs / 60, secs % 60)
+                    }
+
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = statusText,
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onBackground
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "CANCEL",
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = VoxTheme.colors.subtleText,
+                            modifier = Modifier
+                                .clickable(onClick = onCancelSleepTimer)
+                                .padding(2.dp)
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            FlowRow(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                timerPresets.forEach { mins ->
+                    Box(
+                        modifier = Modifier
+                            .border(0.5.dp, VoxTheme.colors.divider, RoundedCornerShape(6.dp))
+                            .background(MaterialTheme.colorScheme.background, RoundedCornerShape(6.dp))
+                            .clickable { onStartSleepTimer(mins) }
+                            .padding(horizontal = 10.dp, vertical = 6.dp)
+                    ) {
+                        Text(
+                            text = "$mins min",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onBackground
+                        )
+                    }
+                }
+
+                // End of song option
+                Box(
+                    modifier = Modifier
+                        .border(
+                            0.5.dp,
+                            if (isSleepTimerEndOfTrack) MaterialTheme.colorScheme.onBackground else VoxTheme.colors.divider,
+                            RoundedCornerShape(6.dp)
+                        )
+                        .background(
+                            if (isSleepTimerEndOfTrack) MaterialTheme.colorScheme.onBackground else MaterialTheme.colorScheme.background,
+                            RoundedCornerShape(6.dp)
+                        )
+                        .clickable { onStartSleepTimerEndOfTrack() }
+                        .padding(horizontal = 10.dp, vertical = 6.dp)
+                ) {
+                    Text(
+                        text = "End of Song",
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = if (isSleepTimerEndOfTrack) FontWeight.Bold else FontWeight.Normal,
+                        color = if (isSleepTimerEndOfTrack) MaterialTheme.colorScheme.background else MaterialTheme.colorScheme.onBackground
+                    )
+                }
+
+                // Custom timer option
+                Box(
+                    modifier = Modifier
+                        .border(0.5.dp, VoxTheme.colors.divider, RoundedCornerShape(6.dp))
+                        .background(MaterialTheme.colorScheme.background, RoundedCornerShape(6.dp))
+                        .clickable { showCustomTimerDialog = true }
+                        .padding(horizontal = 10.dp, vertical = 6.dp)
+                ) {
+                    Text(
+                        text = "Custom...",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onBackground
                     )
                 }
             }

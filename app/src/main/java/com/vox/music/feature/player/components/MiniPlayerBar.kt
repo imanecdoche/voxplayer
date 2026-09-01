@@ -119,14 +119,12 @@ fun MiniPlayerBar(
 
                 IconButton(
                     onClick = onTogglePlayPause,
-                    modifier = Modifier
-                        .size(38.dp)
-                        .background(Color.White, CircleShape)
+                    modifier = Modifier.size(34.dp)
                 ) {
                     Icon(
                         imageVector = if (playerState.isPlaying) Lucide.Pause else Lucide.Play,
                         contentDescription = if (playerState.isPlaying) "Pause" else "Play",
-                        tint = Color.Black,
+                        tint = Color.White,
                         modifier = Modifier.size(18.dp)
                     )
                 }

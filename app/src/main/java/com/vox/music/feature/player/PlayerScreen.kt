@@ -1,10 +1,17 @@
 package com.vox.music.feature.player
 
+import android.content.Context
+import android.graphics.BitmapFactory
+import android.media.MediaMetadataRetriever
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
@@ -12,10 +19,13 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import com.composables.icons.lucide.ChevronDown
 import com.composables.icons.lucide.Heart
@@ -39,11 +49,10 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.Slider
-import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -52,13 +61,19 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.palette.graphics.Palette
 import com.vox.music.core.audio.model.LoopMode
 import com.vox.music.core.model.AudioMetadata
 import com.vox.music.feature.equalizer.EqualizerScreen
@@ -68,7 +83,11 @@ import com.vox.music.feature.player.components.QueueBottomSheet
 import com.vox.music.feature.player.components.SpeedPitchSheet
 import com.vox.music.ui.components.HairlineDivider
 import com.vox.music.ui.components.VoxCoverArt
+import com.vox.music.ui.components.VoxSlider
 import com.vox.music.ui.theme.VoxTheme
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import kotlin.math.roundToInt
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -82,12 +101,13 @@ fun PlayerScreen(
     val currentQueue by viewModel.currentQueue.collectAsStateWithLifecycle()
     val allTracks by viewModel.allTracks.collectAsStateWithLifecycle()
     val playlists by viewModel.playlists.collectAsStateWithLifecycle()
+    val sleepTimerRemainingMs by viewModel.sleepTimerRemainingMs.collectAsStateWithLifecycle()
+    val isSleepTimerEndOfTrack by viewModel.isSleepTimerEndOfTrack.collectAsStateWithLifecycle()
+
     val track = playerState.currentTrack ?: return
 
     val lyricsData by viewModel.lyricsData.collectAsStateWithLifecycle()
     val activeLyricIndex by viewModel.activeLyricIndex.collectAsStateWithLifecycle()
-    val activeChord by viewModel.activeChord.collectAsStateWithLifecycle()
-    val upcomingChords by viewModel.upcomingChords.collectAsStateWithLifecycle()
 
     var showSpeedPitchSheet by remember { mutableStateOf(false) }
     var showEqualizerScreen by remember { mutableStateOf(false) }
@@ -99,6 +119,43 @@ fun PlayerScreen(
 
     var isSeeking by remember { mutableStateOf(false) }
     var seekPosition by remember { mutableFloatStateOf(0f) }
+
+    val context = LocalContext.current
+    val prefs = remember(context) { context.getSharedPreferences("vox_prefs", Context.MODE_PRIVATE) }
+    val dynamicBackgroundEnabled = remember(prefs) { prefs.getBoolean("dynamic_background_enabled", true) }
+    var dominantColor by remember { mutableStateOf<Color?>(null) }
+
+    LaunchedEffect(track.filePath, dynamicBackgroundEnabled) {
+        if (!dynamicBackgroundEnabled) {
+            dominantColor = null
+            return@LaunchedEffect
+        }
+        withContext(Dispatchers.IO) {
+            try {
+                val retriever = MediaMetadataRetriever()
+                retriever.setDataSource(track.filePath)
+                val picture = retriever.embeddedPicture
+                retriever.release()
+                if (picture != null) {
+                    val bitmap = BitmapFactory.decodeByteArray(picture, 0, picture.size)
+                    if (bitmap != null) {
+                        val palette = Palette.from(bitmap).generate()
+                        val dom = palette.getDominantColor(android.graphics.Color.TRANSPARENT)
+                        if (dom != android.graphics.Color.TRANSPARENT) {
+                            dominantColor = Color(dom)
+                        } else {
+                            val vibrant = palette.getVibrantColor(android.graphics.Color.TRANSPARENT)
+                            dominantColor = if (vibrant != android.graphics.Color.TRANSPARENT) Color(vibrant) else null
+                        }
+                    }
+                } else {
+                    dominantColor = null
+                }
+            } catch (e: Exception) {
+                dominantColor = null
+            }
+        }
+    }
 
     if (showLyricsScreen) {
         com.vox.music.feature.lyrics.LyricsScreen(
@@ -127,10 +184,78 @@ fun PlayerScreen(
         return
     }
 
+    // Vertical Drag Gesture to Dismiss Player
+    var screenOffsetY by remember { mutableFloatStateOf(0f) }
+    val animatedScreenOffsetY by animateFloatAsState(targetValue = screenOffsetY, label = "screenDismissY")
+
+    // Dynamic Pastel Aura on White Canvas
+    val bgBrush = if (dominantColor != null && dynamicBackgroundEnabled) {
+        Brush.radialGradient(
+            colors = listOf(
+                dominantColor!!.copy(alpha = 0.22f),
+                dominantColor!!.copy(alpha = 0.08f),
+                Color.White
+            ),
+            radius = 1200f
+        )
+    } else {
+        SolidColor(Color.White)
+    }
+
+    // Horizontal Paging Carousel Queue Data
+    val queueList = if (currentQueue.isNotEmpty()) currentQueue else listOf(track)
+    val currentTrackIndex = queueList.indexOfFirst { it.id == track.id }.coerceAtLeast(0)
+    val pagerState = rememberPagerState(
+        initialPage = currentTrackIndex,
+        pageCount = { queueList.size.coerceAtLeast(1) }
+    )
+
+    LaunchedEffect(track.id) {
+        val targetIdx = queueList.indexOfFirst { it.id == track.id }
+        if (targetIdx >= 0 && targetIdx != pagerState.currentPage) {
+            pagerState.scrollToPage(targetIdx)
+        }
+    }
+
+    LaunchedEffect(pagerState.currentPage, pagerState.isScrollInProgress) {
+        if (!pagerState.isScrollInProgress && pagerState.currentPage in queueList.indices) {
+            val selectedTrack = queueList[pagerState.currentPage]
+            if (selectedTrack.id != track.id) {
+                viewModel.skipToQueueIndex(pagerState.currentPage)
+            }
+        }
+    }
+
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = {}
+            )
+            .offset { IntOffset(0, animatedScreenOffsetY.roundToInt()) }
+            .pointerInput(Unit) {
+                detectVerticalDragGestures(
+                    onDragEnd = {
+                        if (screenOffsetY > 220f) {
+                            onCollapse()
+                        }
+                        screenOffsetY = 0f
+                    },
+                    onDragCancel = {
+                        screenOffsetY = 0f
+                    },
+                    onVerticalDrag = { change, dragAmount ->
+                        change.consume()
+                        if (dragAmount > 0 || screenOffsetY > 0) {
+                            screenOffsetY = (screenOffsetY + dragAmount).coerceAtLeast(0f)
+                        }
+                    }
+                )
+            }
+            .background(Color.White)
+            .background(bgBrush)
             .statusBarsPadding()
             .navigationBarsPadding()
             .padding(horizontal = 24.dp, vertical = 12.dp),
@@ -202,24 +327,34 @@ fun PlayerScreen(
 
         Spacer(modifier = Modifier.height(8.dp))
 
-        // 2. Center Art Cover (Centered 1:1 ratio, ~72% width, RoundedCornerShape 28.dp)
-        Box(
+        // 2. Center Art Cover with Horizontal Paging Carousel
+        HorizontalPager(
+            state = pagerState,
             modifier = Modifier
-                .fillMaxWidth(0.72f)
-                .aspectRatio(1f)
-                .clip(RoundedCornerShape(28.dp))
-                .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(28.dp)),
-            contentAlignment = Alignment.Center
-        ) {
-            VoxCoverArt(
-                filePath = track.filePath,
-                contentDescription = track.title,
-                shape = RoundedCornerShape(28.dp),
-                iconSize = 64.dp,
+                .fillMaxWidth()
+                .height(290.dp),
+            pageSpacing = 16.dp,
+            contentPadding = PaddingValues(horizontal = 36.dp)
+        ) { page ->
+            val pageTrack = queueList.getOrNull(page) ?: track
+            Box(
                 modifier = Modifier
                     .fillMaxSize()
+                    .aspectRatio(1f)
                     .clip(RoundedCornerShape(28.dp))
-            )
+                    .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(28.dp)),
+                contentAlignment = Alignment.Center
+            ) {
+                VoxCoverArt(
+                    filePath = pageTrack.filePath,
+                    contentDescription = pageTrack.title,
+                    shape = RoundedCornerShape(28.dp),
+                    iconSize = 64.dp,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .clip(RoundedCornerShape(28.dp))
+                )
+            }
         }
 
         Spacer(modifier = Modifier.height(16.dp))
@@ -308,7 +443,7 @@ fun PlayerScreen(
 
         Spacer(modifier = Modifier.height(8.dp))
 
-        // 5. Scrubber & Time Tracker
+        // 5. Scrubber & Time Tracker with custom VoxSlider (2dp line, 12dp thumb)
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -317,7 +452,7 @@ fun PlayerScreen(
             val sliderValue = if (isSeeking) seekPosition else playerState.currentPositionMs.toFloat()
             val maxRange = playerState.durationMs.coerceAtLeast(1L).toFloat()
 
-            Slider(
+            VoxSlider(
                 value = sliderValue.coerceIn(0f, maxRange),
                 onValueChange = {
                     isSeeking = true
@@ -328,13 +463,10 @@ fun PlayerScreen(
                     isSeeking = false
                 },
                 valueRange = 0f..maxRange,
-                colors = SliderDefaults.colors(
-                    thumbColor = MaterialTheme.colorScheme.onBackground,
-                    activeTrackColor = MaterialTheme.colorScheme.onBackground,
-                    inactiveTrackColor = VoxTheme.colors.divider
-                ),
                 modifier = Modifier.fillMaxWidth()
             )
+
+            Spacer(modifier = Modifier.height(6.dp))
 
             Row(
                 modifier = Modifier
@@ -378,7 +510,7 @@ fun PlayerScreen(
                 )
             }
 
-            // 2. Previous Track
+            // 2. Previous Track (<=3s previous song, >3s restart song)
             IconButton(
                 onClick = { viewModel.skipPrevious() },
                 modifier = Modifier.size(48.dp)
@@ -404,7 +536,7 @@ fun PlayerScreen(
                 )
             }
 
-            // 4. Next Track
+            // 4. Next Track (Always next song)
             IconButton(
                 onClick = { viewModel.skipNext() },
                 modifier = Modifier.size(48.dp)
@@ -454,8 +586,14 @@ fun PlayerScreen(
             onRemoveFromQueue = { index ->
                 viewModel.removeFromQueue(index)
             },
+            onMoveTrack = { from, to ->
+                viewModel.moveQueueItem(from, to)
+            },
             onAddTrackToQueue = { t ->
                 viewModel.addToQueue(t)
+            },
+            onClearQueue = {
+                viewModel.clearQueueKeepCurrent()
             },
             onDismiss = { showQueueSheet = false }
         )
@@ -557,7 +695,7 @@ fun PlayerScreen(
                     }
                 }
 
-                // Option: Speed & Pitch DSP & A-B Looper
+                // Option: Speed & Pitch DSP & A-B Looper & Sleep Timer
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -578,13 +716,13 @@ fun PlayerScreen(
                     Spacer(modifier = Modifier.width(14.dp))
                     Column {
                         Text(
-                            text = "Speed & Pitch Shifter (SoundTouch DSP)",
+                            text = "Speed & Pitch Shifter, Looper & Sleep Timer",
                             style = MaterialTheme.typography.bodyLarge,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.onBackground
                         )
                         Text(
-                            text = "Speed: %.2fx • Pitch: %+d st • A-B Looper".format(playerState.playbackSpeed, playerState.pitchSemitones),
+                            text = "Speed: %.2fx • Pitch: %+d st • A-B Loop • Sleep Timer".format(playerState.playbackSpeed, playerState.pitchSemitones),
                             style = MaterialTheme.typography.bodySmall,
                             color = VoxTheme.colors.subtleText
                         )
@@ -602,6 +740,8 @@ fun PlayerScreen(
             pitchSemitones = playerState.pitchSemitones,
             pointA = playerState.pointA,
             pointB = playerState.pointB,
+            sleepTimerRemainingMs = sleepTimerRemainingMs,
+            isSleepTimerEndOfTrack = isSleepTimerEndOfTrack,
             onSpeedChange = { viewModel.setSpeed(it) },
             onPitchChange = { viewModel.setPitch(it) },
             onSetPointA = { viewModel.setPointA() },
@@ -610,7 +750,11 @@ fun PlayerScreen(
             onResetSpeed = { viewModel.resetSpeed() },
             onResetPitch = { viewModel.resetPitch() },
             onResetAll = { viewModel.resetAllDsp() },
+            onStartSleepTimer = { viewModel.startSleepTimer(it) },
+            onStartSleepTimerEndOfTrack = { viewModel.startSleepTimerEndOfTrack() },
+            onCancelSleepTimer = { viewModel.cancelSleepTimer() },
             onDismiss = { showSpeedPitchSheet = false }
         )
     }
 }
+

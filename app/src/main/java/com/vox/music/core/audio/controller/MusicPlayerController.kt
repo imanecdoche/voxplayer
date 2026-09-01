@@ -52,10 +52,17 @@ class MusicPlayerController @Inject constructor(
 
     private val scope = CoroutineScope(Dispatchers.Main)
     private var progressJob: Job? = null
+    private var sleepTimerJob: Job? = null
 
     private var currentPlaylist: List<AudioTrack> = emptyList()
     private val _currentQueue = MutableStateFlow<List<AudioTrack>>(emptyList())
     val currentQueue: StateFlow<List<AudioTrack>> = _currentQueue.asStateFlow()
+
+    private val _sleepTimerRemainingMs = MutableStateFlow<Long?>(null)
+    val sleepTimerRemainingMs: StateFlow<Long?> = _sleepTimerRemainingMs.asStateFlow()
+
+    private val _isSleepTimerEndOfTrack = MutableStateFlow(false)
+    val isSleepTimerEndOfTrack: StateFlow<Boolean> = _isSleepTimerEndOfTrack.asStateFlow()
 
     init {
         initializeController()
@@ -93,6 +100,10 @@ class MusicPlayerController @Inject constructor(
                         durationMs = player.duration.coerceAtLeast(0L)
                     )
                 }
+                if (_isSleepTimerEndOfTrack.value && playbackState == Player.STATE_ENDED) {
+                    _isSleepTimerEndOfTrack.value = false
+                    player.pause()
+                }
             }
 
             override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
@@ -103,6 +114,10 @@ class MusicPlayerController @Inject constructor(
                         durationMs = player.duration.coerceAtLeast(0L),
                         currentPositionMs = player.currentPosition.coerceAtLeast(0L)
                     )
+                }
+                if (_isSleepTimerEndOfTrack.value && reason == Player.MEDIA_ITEM_TRANSITION_REASON_AUTO) {
+                    _isSleepTimerEndOfTrack.value = false
+                    player.pause()
                 }
             }
 
@@ -217,6 +232,30 @@ class MusicPlayerController @Inject constructor(
         controller?.addMediaItem(track.toMediaItem())
     }
 
+    fun clearQueueKeepCurrent() {
+        val current = _playerState.value.currentTrack
+        if (current != null) {
+            currentPlaylist = listOf(current)
+            _currentQueue.value = listOf(current)
+            controller?.let { player ->
+                val currentIndex = player.currentMediaItemIndex
+                val totalItems = player.mediaItemCount
+                if (totalItems > 1) {
+                    for (i in (totalItems - 1) downTo (currentIndex + 1)) {
+                        player.removeMediaItem(i)
+                    }
+                    for (i in (currentIndex - 1) downTo 0) {
+                        player.removeMediaItem(i)
+                    }
+                }
+            }
+        } else {
+            currentPlaylist = emptyList()
+            _currentQueue.value = emptyList()
+            controller?.clearMediaItems()
+        }
+    }
+
     fun skipToQueueIndex(index: Int) {
         if (index in currentPlaylist.indices) {
             controller?.seekToDefaultPosition(index)
@@ -263,21 +302,78 @@ class MusicPlayerController @Inject constructor(
             } else if (currentPlaylist.size > 1) {
                 player.seekToDefaultPosition(0)
             } else {
-                seekForward(10_000L)
+                player.seekTo(0L)
             }
         }
     }
 
     fun skipPrevious() {
         controller?.let { player ->
-            if (player.currentPosition > 3000) {
-                player.seekTo(0L)
-            } else if (player.hasPreviousMediaItem()) {
-                player.seekToPreviousMediaItem()
+            val pos = player.currentPosition.coerceAtLeast(0L)
+            if (pos <= 3000L) {
+                if (player.hasPreviousMediaItem()) {
+                    player.seekToPreviousMediaItem()
+                } else if (currentPlaylist.size > 1) {
+                    player.seekToDefaultPosition(currentPlaylist.size - 1)
+                } else {
+                    player.seekTo(0L)
+                }
             } else {
                 player.seekTo(0L)
             }
         }
+    }
+
+    fun updateTrackFavorite(trackId: Long, isFavorite: Boolean) {
+        currentPlaylist = currentPlaylist.map {
+            if (it.id == trackId) it.copy(isFavorite = isFavorite) else it
+        }
+        _currentQueue.update { queue ->
+            queue.map { if (it.id == trackId) it.copy(isFavorite = isFavorite) else it }
+        }
+        _playerState.update { state ->
+            if (state.currentTrack?.id == trackId) {
+                state.copy(currentTrack = state.currentTrack.copy(isFavorite = isFavorite))
+            } else {
+                state
+            }
+        }
+    }
+
+    // ==================== SLEEP TIMER ====================
+
+    fun startSleepTimer(minutes: Int) {
+        cancelSleepTimer()
+        if (minutes <= 0) return
+        val totalMs = minutes * 60 * 1000L
+        val targetEndTime = System.currentTimeMillis() + totalMs
+        _sleepTimerRemainingMs.value = totalMs
+
+        sleepTimerJob = scope.launch {
+            while (isActive) {
+                val remaining = targetEndTime - System.currentTimeMillis()
+                if (remaining <= 0) {
+                    _sleepTimerRemainingMs.value = null
+                    controller?.pause()
+                    break
+                } else {
+                    _sleepTimerRemainingMs.value = remaining
+                }
+                delay(500)
+            }
+        }
+    }
+
+    fun startSleepTimerEndOfTrack() {
+        cancelSleepTimer()
+        _isSleepTimerEndOfTrack.value = true
+    }
+
+    fun cancelSleepTimer() {
+        sleepTimerJob?.cancel()
+        sleepTimerJob = null
+        _sleepTimerRemainingMs.value = null
+        _isSleepTimerEndOfTrack.value = false
     }
 
     fun toggleShuffle() {

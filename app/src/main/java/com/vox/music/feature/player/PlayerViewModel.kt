@@ -34,6 +34,8 @@ class PlayerViewModel @Inject constructor(
     val playerState: StateFlow<PlayerState> = playerController.playerState
     val equalizerState = playerController.equalizerState
     val currentQueue: StateFlow<List<AudioTrack>> = playerController.currentQueue
+    val sleepTimerRemainingMs: StateFlow<Long?> = playerController.sleepTimerRemainingMs
+    val isSleepTimerEndOfTrack: StateFlow<Boolean> = playerController.isSleepTimerEndOfTrack
 
     val allTracks: StateFlow<List<AudioTrack>> = audioRepository.getAllTracks()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
@@ -208,9 +210,22 @@ class PlayerViewModel @Inject constructor(
     }
 
     fun toggleFavorite(trackId: Long, isFavorite: Boolean) {
+        playerController.updateTrackFavorite(trackId, isFavorite)
         viewModelScope.launch {
             audioRepository.toggleFavorite(trackId, isFavorite)
         }
+    }
+
+    fun startSleepTimer(minutes: Int) {
+        playerController.startSleepTimer(minutes)
+    }
+
+    fun startSleepTimerEndOfTrack() {
+        playerController.startSleepTimerEndOfTrack()
+    }
+
+    fun cancelSleepTimer() {
+        playerController.cancelSleepTimer()
     }
 
     fun removeFromQueue(index: Int) {
@@ -227,6 +242,10 @@ class PlayerViewModel @Inject constructor(
 
     fun skipToQueueIndex(index: Int) {
         playerController.skipToQueueIndex(index)
+    }
+
+    fun clearQueueKeepCurrent() {
+        playerController.clearQueueKeepCurrent()
     }
 
     fun addTrackToPlaylist(playlistId: Long, trackId: Long) {

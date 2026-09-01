@@ -81,6 +81,9 @@ data class LibraryUiState(
         if (selectedPlaylist != other.selectedPlaylist) return false
         if (searchQuery != other.searchQuery) return false
         if (isSearchActive != other.isSearchActive) return false
+        if (isSearchViewOpen != other.isSearchViewOpen) return false
+        if (sortOrder != other.sortOrder) return false
+        if (showSortBottomSheet != other.showSortBottomSheet) return false
         if (folders != other.folders) return false
         if (tracks != other.tracks) return false
         if (folderTracks != other.folderTracks) return false
@@ -88,6 +91,7 @@ data class LibraryUiState(
         if (playlists != other.playlists) return false
         if (playlistTracks != other.playlistTracks) return false
         if (searchResults != other.searchResults) return false
+        if (recentSearches != other.recentSearches) return false
         if (activeActionTrack != other.activeActionTrack) return false
         if (trackForTagEditor != other.trackForTagEditor) return false
         if (trackForRename != other.trackForRename) return false
@@ -109,6 +113,9 @@ data class LibraryUiState(
         result = 31 * result + (selectedPlaylist?.hashCode() ?: 0)
         result = 31 * result + searchQuery.hashCode()
         result = 31 * result + isSearchActive.hashCode()
+        result = 31 * result + isSearchViewOpen.hashCode()
+        result = 31 * result + sortOrder.hashCode()
+        result = 31 * result + showSortBottomSheet.hashCode()
         result = 31 * result + folders.hashCode()
         result = 31 * result + tracks.hashCode()
         result = 31 * result + folderTracks.hashCode()
@@ -116,6 +123,7 @@ data class LibraryUiState(
         result = 31 * result + playlists.hashCode()
         result = 31 * result + playlistTracks.hashCode()
         result = 31 * result + searchResults.hashCode()
+        result = 31 * result + recentSearches.hashCode()
         result = 31 * result + (activeActionTrack?.hashCode() ?: 0)
         result = 31 * result + (trackForTagEditor?.hashCode() ?: 0)
         result = 31 * result + (trackForRename?.hashCode() ?: 0)

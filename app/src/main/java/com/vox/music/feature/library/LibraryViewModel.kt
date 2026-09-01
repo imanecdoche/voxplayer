@@ -3,6 +3,7 @@ package com.vox.music.feature.library
 import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.vox.music.core.audio.controller.MusicPlayerController
 import com.vox.music.core.model.AudioMetadata
 import com.vox.music.core.model.AudioTrack
 import com.vox.music.core.model.DirectoryGroup
@@ -20,6 +21,7 @@ import javax.inject.Inject
 @HiltViewModel
 class LibraryViewModel @Inject constructor(
     private val audioRepository: AudioRepository,
+    private val playerController: MusicPlayerController,
     @ApplicationContext private val context: Context
 ) : ViewModel() {
 
@@ -27,6 +29,7 @@ class LibraryViewModel @Inject constructor(
 
     private val _uiState = MutableStateFlow(LibraryUiState())
     val uiState: StateFlow<LibraryUiState> = _uiState.asStateFlow()
+    val playerState = playerController.playerState
 
     init {
         val savedSort = prefs.getString("track_sort_order", TrackSortOrder.TITLE_ASC.name)
@@ -143,6 +146,10 @@ class LibraryViewModel @Inject constructor(
             // Dialog & Action Sheet Triggers
             is LibraryIntent.OpenTrackActions -> {
                 _uiState.update { it.copy(activeActionTrack = intent.track) }
+            }
+
+            is LibraryIntent.AddTrackToQueue -> {
+                playerController.addToQueue(intent.track)
             }
 
             is LibraryIntent.OpenTagEditor -> {

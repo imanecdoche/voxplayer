@@ -10,6 +10,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -70,18 +71,25 @@ import com.vox.music.ui.components.HairlineDivider
 import com.vox.music.ui.components.VoxHeader
 import com.vox.music.ui.theme.VoxTheme
 
-import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.ExperimentalMaterial3Api
+import com.composables.icons.lucide.Settings
+import androidx.compose.material3.Switch
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LibraryScreen(
     viewModel: LibraryViewModel,
-    onTrackSelected: (AudioTrack) -> Unit,
+    onTrackSelected: (AudioTrack, List<AudioTrack>) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
+    val prefs = remember(context) { context.getSharedPreferences("vox_prefs", android.content.Context.MODE_PRIVATE) }
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val playerState by viewModel.playerState.collectAsStateWithLifecycle()
 
     var showCreatePlaylistDialog by remember { mutableStateOf(false) }
+    var showMainSettingsSheet by remember { mutableStateOf(false) }
 
     val permissionToRequest = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
         Manifest.permission.READ_MEDIA_AUDIO
@@ -116,8 +124,8 @@ fun LibraryScreen(
             onClearQuery = { viewModel.onIntent(LibraryIntent.UpdateSearchQuery("")) },
             onDeleteHistoryItem = { id -> viewModel.onIntent(LibraryIntent.DeleteSearchHistory(id)) },
             onClearAllHistory = { viewModel.onIntent(LibraryIntent.ClearSearchHistory) },
-            onTrackClick = { track, _ ->
-                onTrackSelected(track)
+            onTrackClick = { track, resultsList ->
+                onTrackSelected(track, resultsList)
                 viewModel.onIntent(LibraryIntent.SetSearchViewOpen(false))
             },
             onTrackOptionsClick = { track ->
@@ -250,6 +258,16 @@ fun LibraryScreen(
                                     modifier = Modifier.size(20.dp)
                                 )
                             }
+                            IconButton(
+                                onClick = { showMainSettingsSheet = true }
+                            ) {
+                                Icon(
+                                    imageVector = Lucide.Settings,
+                                    contentDescription = "Settings",
+                                    tint = MaterialTheme.colorScheme.onBackground,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
                         }
                     }
                 )
@@ -371,6 +389,8 @@ fun LibraryScreen(
                     TrackListView(
                         tracks = uiState.displayedTracks,
                         emptyMessage = "No audio tracks in this folder",
+                        currentTrackId = playerState.currentTrack?.id,
+                        isPlaying = playerState.isPlaying,
                         onTrackSelected = onTrackSelected,
                         onToggleFavorite = { trackId, isFav ->
                             viewModel.onIntent(LibraryIntent.ToggleFavorite(trackId, isFav))
@@ -385,6 +405,8 @@ fun LibraryScreen(
                     TrackListView(
                         tracks = uiState.playlistTracks,
                         emptyMessage = "No tracks in this playlist.\nTap ':' on any track to add it.",
+                        currentTrackId = playerState.currentTrack?.id,
+                        isPlaying = playerState.isPlaying,
                         onTrackSelected = onTrackSelected,
                         onToggleFavorite = { trackId, isFav ->
                             viewModel.onIntent(LibraryIntent.ToggleFavorite(trackId, isFav))
@@ -399,6 +421,8 @@ fun LibraryScreen(
                     TrackListView(
                         tracks = uiState.searchResults,
                         emptyMessage = if (uiState.searchQuery.isEmpty()) "Type to search..." else "No matching tracks found",
+                        currentTrackId = playerState.currentTrack?.id,
+                        isPlaying = playerState.isPlaying,
                         onTrackSelected = onTrackSelected,
                         onToggleFavorite = { trackId, isFav ->
                             viewModel.onIntent(LibraryIntent.ToggleFavorite(trackId, isFav))
@@ -451,6 +475,8 @@ fun LibraryScreen(
                     TrackListView(
                         tracks = uiState.tracks,
                         emptyMessage = "No audio tracks found.\nTap refresh to scan storage.",
+                        currentTrackId = playerState.currentTrack?.id,
+                        isPlaying = playerState.isPlaying,
                         onTrackSelected = onTrackSelected,
                         onToggleFavorite = { trackId, isFav ->
                             viewModel.onIntent(LibraryIntent.ToggleFavorite(trackId, isFav))
@@ -478,6 +504,8 @@ fun LibraryScreen(
                     TrackListView(
                         tracks = uiState.favoriteTracks,
                         emptyMessage = "No favorite tracks yet.\nTap star on any track to add.",
+                        currentTrackId = playerState.currentTrack?.id,
+                        isPlaying = playerState.isPlaying,
                         onTrackSelected = onTrackSelected,
                         onToggleFavorite = { trackId, isFav ->
                             viewModel.onIntent(LibraryIntent.ToggleFavorite(trackId, isFav))
@@ -499,6 +527,7 @@ fun LibraryScreen(
             track = track,
             onToggleFavorite = { viewModel.onIntent(LibraryIntent.ToggleFavorite(track.id, !track.isFavorite)) },
             onAddToPlaylist = { viewModel.onIntent(LibraryIntent.OpenAddToPlaylistDialog(track)) },
+            onAddToQueue = { viewModel.onIntent(LibraryIntent.AddTrackToQueue(track)) },
             onEditTags = { viewModel.onIntent(LibraryIntent.OpenTagEditor(track)) },
             onEditMetadata = { viewModel.onIntent(LibraryIntent.OpenMetadataEditor(track)) },
             onClipAudio = { viewModel.onIntent(LibraryIntent.OpenClipper(track)) },
@@ -604,13 +633,86 @@ fun LibraryScreen(
             onDismiss = { viewModel.onIntent(LibraryIntent.SetShowSortBottomSheet(false)) }
         )
     }
+
+    // Main App Settings Bottom Sheet
+    if (showMainSettingsSheet) {
+        val settingsSheetState = androidx.compose.material3.rememberModalBottomSheetState(skipPartiallyExpanded = true)
+        var dynamicBgEnabled by remember {
+            mutableStateOf(prefs.getBoolean("dynamic_background_enabled", true))
+        }
+
+        androidx.compose.material3.ModalBottomSheet(
+            onDismissRequest = { showMainSettingsSheet = false },
+            sheetState = settingsSheetState,
+            containerColor = MaterialTheme.colorScheme.background,
+            shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp),
+            dragHandle = null
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp, vertical = 24.dp)
+            ) {
+                Text(
+                    text = "SETTINGS & PREFERENCES",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onBackground
+                )
+
+                Spacer(modifier = Modifier.height(14.dp))
+                HairlineDivider()
+                Spacer(modifier = Modifier.height(14.dp))
+
+                // Dynamic Ambient Background Setting
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable {
+                            val newVal = !dynamicBgEnabled
+                            dynamicBgEnabled = newVal
+                            prefs.edit().putBoolean("dynamic_background_enabled", newVal).apply()
+                        }
+                        .padding(vertical = 8.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f).padding(end = 16.dp)) {
+                        Text(
+                            text = "Dynamic Ambient Background",
+                            style = MaterialTheme.typography.bodyLarge,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onBackground
+                        )
+                        Text(
+                            text = "Extract dominant album artwork colors into a soft radial background glow on the Player screen (pure #000000 when disabled).",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = VoxTheme.colors.subtleText
+                        )
+                    }
+
+                    Switch(
+                        checked = dynamicBgEnabled,
+                        onCheckedChange = {
+                            dynamicBgEnabled = it
+                            prefs.edit().putBoolean("dynamic_background_enabled", it).apply()
+                        }
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(20.dp))
+            }
+        }
+    }
 }
 
 @Composable
 private fun TrackListView(
     tracks: List<AudioTrack>,
     emptyMessage: String,
-    onTrackSelected: (AudioTrack) -> Unit,
+    currentTrackId: Long? = null,
+    isPlaying: Boolean = false,
+    onTrackSelected: (AudioTrack, List<AudioTrack>) -> Unit,
     onToggleFavorite: (Long, Boolean) -> Unit,
     onMoreOptions: (AudioTrack) -> Unit
 ) {
@@ -637,9 +739,12 @@ private fun TrackListView(
                 HairlineDivider()
             }
             items(tracks, key = { it.id }) { track ->
+                val isCurrent = track.id == currentTrackId
                 TrackListItem(
                     track = track,
-                    onClick = { onTrackSelected(track) },
+                    isCurrentTrack = isCurrent,
+                    isPlaying = isCurrent && isPlaying,
+                    onClick = { onTrackSelected(track, tracks) },
                     onToggleFavorite = { isFav -> onToggleFavorite(track.id, isFav) },
                     onMoreOptions = { onMoreOptions(track) }
                 )
@@ -667,3 +772,4 @@ private fun EmptyStateView(
         )
     }
 }
+

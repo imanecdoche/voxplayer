@@ -46,6 +46,7 @@ fun TrackActionsSheet(
     track: AudioTrack,
     onToggleFavorite: () -> Unit,
     onAddToPlaylist: () -> Unit,
+    onAddToQueue: () -> Unit = {},
     onEditTags: () -> Unit,
     onEditMetadata: () -> Unit,
     onClipAudio: () -> Unit,
@@ -109,6 +110,15 @@ fun TrackActionsSheet(
                 onClick = {
                     onToggleFavorite()
                     onDismiss()
+                }
+            )
+
+            ActionMenuItem(
+                icon = Lucide.ListMusic,
+                label = "Add to Playing Queue",
+                onClick = {
+                    onDismiss()
+                    onAddToQueue()
                 }
             )
 

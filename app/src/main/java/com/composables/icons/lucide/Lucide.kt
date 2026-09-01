@@ -44,6 +44,7 @@ object Lucide {
     val GripVertical: ImageVector @Composable get() = ImageVector.vectorResource(R.drawable.lucide_ic_grip_vertical)
     val ArrowUpDown: ImageVector @Composable get() = ImageVector.vectorResource(R.drawable.lucide_ic_arrow_up_down)
     val History: ImageVector @Composable get() = ImageVector.vectorResource(R.drawable.lucide_ic_history)
+    val Eraser: ImageVector @Composable get() = ImageVector.vectorResource(R.drawable.lucide_ic_eraser)
 }
 
 val Settings: ImageVector @Composable get() = Lucide.Settings

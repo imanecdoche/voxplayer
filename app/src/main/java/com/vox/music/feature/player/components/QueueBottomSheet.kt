@@ -50,6 +50,17 @@ import com.vox.music.ui.components.HairlineDivider
 import com.vox.music.ui.components.VoxCoverArt
 import com.vox.music.ui.theme.VoxTheme
 
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.text.TextStyle
+import com.composables.icons.lucide.ArrowUpDown
+import com.composables.icons.lucide.ChevronDown
+import com.composables.icons.lucide.Search
+
+private enum class QueuePickerSort {
+    A_TO_Z, DATE_ADDED, DURATION
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun QueueBottomSheet(
@@ -58,7 +69,9 @@ fun QueueBottomSheet(
     allAvailableTracks: List<AudioTrack>,
     onTrackSelected: (Int) -> Unit,
     onRemoveFromQueue: (Int) -> Unit,
+    onMoveTrack: (fromIndex: Int, toIndex: Int) -> Unit = { _, _ -> },
     onAddTrackToQueue: (AudioTrack) -> Unit,
+    onClearQueue: () -> Unit = {},
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -101,6 +114,17 @@ fun QueueBottomSheet(
                 }
 
                 Row(verticalAlignment = Alignment.CenterVertically) {
+                    if (queue.size > 1) {
+                        IconButton(onClick = onClearQueue) {
+                            Icon(
+                                imageVector = Lucide.Eraser,
+                                contentDescription = "Clear Queue (Keep Current)",
+                                tint = MaterialTheme.colorScheme.onBackground,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                    }
+
                     IconButton(onClick = { showAddTrackPicker = true }) {
                         Icon(
                             imageVector = Lucide.Plus,
@@ -178,7 +202,7 @@ fun QueueBottomSheet(
                                 style = MaterialTheme.typography.labelSmall,
                                 fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.Normal,
                                 color = if (isCurrent) MaterialTheme.colorScheme.onBackground else VoxTheme.colors.subtleText,
-                                modifier = Modifier.width(24.dp)
+                                modifier = Modifier.width(22.dp)
                             )
 
                             // Thumbnail
@@ -190,7 +214,7 @@ fun QueueBottomSheet(
                                 modifier = Modifier.size(40.dp)
                             )
 
-                            Spacer(modifier = Modifier.width(12.dp))
+                            Spacer(modifier = Modifier.width(10.dp))
 
                             // Metadata
                             Column(modifier = Modifier.weight(1f)) {
@@ -211,16 +235,44 @@ fun QueueBottomSheet(
                                 )
                             }
 
+                            // Reorder Up Button
+                            if (index > 0) {
+                                IconButton(
+                                    onClick = { onMoveTrack(index, index - 1) },
+                                    modifier = Modifier.size(28.dp)
+                                ) {
+                                    Text(
+                                        text = "▲",
+                                        style = MaterialTheme.typography.labelMedium,
+                                        color = VoxTheme.colors.subtleText
+                                    )
+                                }
+                            }
+
+                            // Reorder Down Button
+                            if (index < queue.size - 1) {
+                                IconButton(
+                                    onClick = { onMoveTrack(index, index + 1) },
+                                    modifier = Modifier.size(28.dp)
+                                ) {
+                                    Text(
+                                        text = "▼",
+                                        style = MaterialTheme.typography.labelMedium,
+                                        color = VoxTheme.colors.subtleText
+                                    )
+                                }
+                            }
+
                             // Remove from Queue button
                             IconButton(
                                 onClick = { onRemoveFromQueue(index) },
-                                modifier = Modifier.size(36.dp)
+                                modifier = Modifier.size(32.dp)
                             ) {
                                 Icon(
                                     imageVector = Lucide.Trash2,
                                     contentDescription = "Remove from Queue",
                                     tint = VoxTheme.colors.subtleText,
-                                    modifier = Modifier.size(18.dp)
+                                    modifier = Modifier.size(16.dp)
                                 )
                             }
                         }
@@ -230,8 +282,28 @@ fun QueueBottomSheet(
         }
     }
 
-    // Add Track Picker Sheet
+    // Add Track Picker Sheet with Search & Sort
     if (showAddTrackPicker) {
+        var pickerQuery by remember { mutableStateOf("") }
+        var pickerSort by remember { mutableStateOf(QueuePickerSort.A_TO_Z) }
+
+        val filteredAndSortedTracks = remember(allAvailableTracks, pickerQuery, pickerSort) {
+            val filtered = if (pickerQuery.isBlank()) {
+                allAvailableTracks
+            } else {
+                allAvailableTracks.filter {
+                    it.title.contains(pickerQuery, ignoreCase = true) ||
+                    it.artist.contains(pickerQuery, ignoreCase = true) ||
+                    it.album.contains(pickerQuery, ignoreCase = true)
+                }
+            }
+            when (pickerSort) {
+                QueuePickerSort.A_TO_Z -> filtered.sortedBy { it.title.lowercase() }
+                QueuePickerSort.DATE_ADDED -> filtered.sortedByDescending { it.dateAdded }
+                QueuePickerSort.DURATION -> filtered.sortedByDescending { it.durationMs }
+            }
+        }
+
         val pickerSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
         ModalBottomSheet(
             onDismissRequest = { showAddTrackPicker = false },
@@ -243,7 +315,7 @@ fun QueueBottomSheet(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .fillMaxHeight(0.8f)
+                    .fillMaxHeight(0.85f)
                     .padding(horizontal = 20.dp, vertical = 20.dp)
             ) {
                 Text(
@@ -254,59 +326,172 @@ fun QueueBottomSheet(
                 )
 
                 Spacer(modifier = Modifier.height(12.dp))
-                HairlineDivider()
-                Spacer(modifier = Modifier.height(12.dp))
 
-                LazyColumn(
-                    modifier = Modifier.fillMaxWidth().weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                // Search Bar
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(42.dp)
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(MaterialTheme.colorScheme.surfaceVariant)
+                        .padding(horizontal = 10.dp),
+                    contentAlignment = Alignment.CenterStart
                 ) {
-                    itemsIndexed(allAvailableTracks, key = { _, t -> t.id }) { _, track ->
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clip(RoundedCornerShape(8.dp))
-                                .clickable {
-                                    onAddTrackToQueue(track)
-                                    showAddTrackPicker = false
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Lucide.Search,
+                            contentDescription = null,
+                            tint = VoxTheme.colors.subtleText,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        BasicTextField(
+                            value = pickerQuery,
+                            onValueChange = { pickerQuery = it },
+                            textStyle = TextStyle(
+                                color = MaterialTheme.colorScheme.onBackground,
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Medium
+                            ),
+                            cursorBrush = SolidColor(MaterialTheme.colorScheme.onBackground),
+                            singleLine = true,
+                            modifier = Modifier.weight(1f),
+                            decorationBox = { innerTextField ->
+                                if (pickerQuery.isEmpty()) {
+                                    Text(
+                                        text = "Search songs to add...",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = VoxTheme.colors.subtleText
+                                    )
                                 }
-                                .padding(horizontal = 8.dp, vertical = 8.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            VoxCoverArt(
-                                filePath = track.filePath,
-                                contentDescription = track.title,
-                                shape = RoundedCornerShape(6.dp),
-                                iconSize = 20.dp,
-                                modifier = Modifier.size(40.dp)
-                            )
-
-                            Spacer(modifier = Modifier.width(12.dp))
-
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    text = track.title,
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.onBackground,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
-                                )
-                                Text(
-                                    text = track.artist,
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = VoxTheme.colors.subtleText,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
+                                innerTextField()
+                            }
+                        )
+                        if (pickerQuery.isNotEmpty()) {
+                            IconButton(
+                                onClick = { pickerQuery = "" },
+                                modifier = Modifier.size(20.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Lucide.X,
+                                    contentDescription = "Clear",
+                                    tint = MaterialTheme.colorScheme.onBackground,
+                                    modifier = Modifier.size(14.dp)
                                 )
                             }
+                        }
+                    }
+                }
 
-                            Icon(
-                                imageVector = Lucide.Plus,
-                                contentDescription = "Add",
-                                tint = MaterialTheme.colorScheme.onBackground,
-                                modifier = Modifier.size(20.dp)
+                Spacer(modifier = Modifier.height(10.dp))
+
+                // Sorting Chips (A-Z, Date, Duration)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    QueuePickerSort.entries.forEach { sortOption ->
+                        val isSelected = pickerSort == sortOption
+                        val label = when (sortOption) {
+                            QueuePickerSort.A_TO_Z -> "A-Z"
+                            QueuePickerSort.DATE_ADDED -> "Date Added"
+                            QueuePickerSort.DURATION -> "Duration"
+                        }
+                        Box(
+                            modifier = Modifier
+                                .border(
+                                    width = 0.5.dp,
+                                    color = if (isSelected) MaterialTheme.colorScheme.onBackground else VoxTheme.colors.divider,
+                                    shape = RoundedCornerShape(6.dp)
+                                )
+                                .background(
+                                    color = if (isSelected) MaterialTheme.colorScheme.onBackground else MaterialTheme.colorScheme.background,
+                                    shape = RoundedCornerShape(6.dp)
+                                )
+                                .clickable { pickerSort = sortOption }
+                                .padding(horizontal = 10.dp, vertical = 5.dp)
+                        ) {
+                            Text(
+                                text = label,
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                color = if (isSelected) MaterialTheme.colorScheme.background else MaterialTheme.colorScheme.onBackground
                             )
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+                HairlineDivider()
+                Spacer(modifier = Modifier.height(10.dp))
+
+                if (filteredAndSortedTracks.isEmpty()) {
+                    Box(
+                        modifier = Modifier.fillMaxWidth().weight(1f),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "No matching tracks found",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = VoxTheme.colors.subtleText
+                        )
+                    }
+                } else {
+                    LazyColumn(
+                        modifier = Modifier.fillMaxWidth().weight(1f),
+                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        itemsIndexed(filteredAndSortedTracks, key = { _, t -> t.id }) { _, track ->
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .clickable {
+                                        onAddTrackToQueue(track)
+                                        showAddTrackPicker = false
+                                    }
+                                    .padding(horizontal = 8.dp, vertical = 8.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                VoxCoverArt(
+                                    filePath = track.filePath,
+                                    contentDescription = track.title,
+                                    shape = RoundedCornerShape(6.dp),
+                                    iconSize = 20.dp,
+                                    modifier = Modifier.size(40.dp)
+                                )
+
+                                Spacer(modifier = Modifier.width(12.dp))
+
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = track.title,
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.onBackground,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                    Text(
+                                        text = "${track.artist} • ${track.durationFormatted}",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = VoxTheme.colors.subtleText,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
+
+                                Icon(
+                                    imageVector = Lucide.Plus,
+                                    contentDescription = "Add",
+                                    tint = MaterialTheme.colorScheme.onBackground,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
                         }
                     }
                 }

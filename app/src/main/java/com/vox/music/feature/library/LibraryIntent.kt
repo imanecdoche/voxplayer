@@ -17,6 +17,7 @@ sealed interface LibraryIntent {
 
     // Action Sheet & Dialogs
     data class OpenTrackActions(val track: AudioTrack?) : LibraryIntent
+    data class AddTrackToQueue(val track: AudioTrack) : LibraryIntent
     data class OpenTagEditor(val track: AudioTrack?) : LibraryIntent
     data class OpenRenameDialog(val track: AudioTrack?) : LibraryIntent
     data class OpenAddToPlaylistDialog(val track: AudioTrack?) : LibraryIntent
