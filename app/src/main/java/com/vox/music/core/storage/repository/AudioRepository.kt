@@ -43,4 +43,10 @@ interface AudioRepository {
     // Audio Clipper & Waveform
     suspend fun getWaveform(filePath: String): FloatArray
     suspend fun trimAudioLossless(track: AudioTrack, startMs: Long, endMs: Long, customName: String?): Result<File>
+
+    // Search History
+    fun getRecentSearches(): Flow<List<com.vox.music.core.database.entity.SearchHistoryEntity>>
+    suspend fun addSearchQuery(query: String)
+    suspend fun deleteSearchQuery(id: Long)
+    suspend fun clearSearchHistory()
 }

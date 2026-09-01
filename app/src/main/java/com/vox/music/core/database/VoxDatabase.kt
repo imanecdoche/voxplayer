@@ -5,25 +5,29 @@ import androidx.room.RoomDatabase
 import com.vox.music.core.database.dao.AudioAnalysisDao
 import com.vox.music.core.database.dao.AudioTrackDao
 import com.vox.music.core.database.dao.PlaylistDao
+import com.vox.music.core.database.dao.SearchHistoryDao
 import com.vox.music.core.database.entity.AudioAnalysisCacheEntity
 import com.vox.music.core.database.entity.AudioTrackEntity
 import com.vox.music.core.database.entity.PlaylistEntity
 import com.vox.music.core.database.entity.PlaylistTrackCrossRef
+import com.vox.music.core.database.entity.SearchHistoryEntity
 
 @Database(
     entities = [
         AudioTrackEntity::class,
         PlaylistEntity::class,
         PlaylistTrackCrossRef::class,
-        AudioAnalysisCacheEntity::class
+        AudioAnalysisCacheEntity::class,
+        SearchHistoryEntity::class
     ],
-    version = 3,
+    version = 4,
     exportSchema = false
 )
 abstract class VoxDatabase : RoomDatabase() {
     abstract fun audioTrackDao(): AudioTrackDao
     abstract fun playlistDao(): PlaylistDao
     abstract fun audioAnalysisDao(): AudioAnalysisDao
+    abstract fun searchHistoryDao(): SearchHistoryDao
 
     companion object {
         const val DATABASE_NAME = "vox_music.db"

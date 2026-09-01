@@ -20,7 +20,9 @@ data class AudioMetadata(
     val channels: Int = 0,
     val format: String = "",
     val fileSizeBytes: Long = 0L,
-    val durationMs: Long = 0L
+    val durationMs: Long = 0L,
+    val bpm: Float? = null,
+    val musicalKey: String? = null
 ) {
     val durationFormatted: String
         get() {

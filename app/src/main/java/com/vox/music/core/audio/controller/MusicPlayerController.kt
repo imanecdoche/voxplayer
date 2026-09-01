@@ -54,6 +54,8 @@ class MusicPlayerController @Inject constructor(
     private var progressJob: Job? = null
 
     private var currentPlaylist: List<AudioTrack> = emptyList()
+    private val _currentQueue = MutableStateFlow<List<AudioTrack>>(emptyList())
+    val currentQueue: StateFlow<List<AudioTrack>> = _currentQueue.asStateFlow()
 
     init {
         initializeController()
@@ -143,14 +145,25 @@ class MusicPlayerController @Inject constructor(
         progressJob = scope.launch {
             while (isActive) {
                 controller?.let { player ->
+                    val currentPos = player.currentPosition.coerceAtLeast(0L)
+                    val duration = player.duration.coerceAtLeast(0L)
+
+                    val a = _playerState.value.pointA
+                    val b = _playerState.value.pointB
+                    if (a != null && b != null && b > a && player.isPlaying) {
+                        if (currentPos >= b || currentPos < a) {
+                            player.seekTo(a)
+                        }
+                    }
+
                     _playerState.update {
                         it.copy(
-                            currentPositionMs = player.currentPosition.coerceAtLeast(0L),
-                            durationMs = player.duration.coerceAtLeast(0L)
+                            currentPositionMs = currentPos,
+                            durationMs = duration
                         )
                     }
                 }
-                delay(200)
+                delay(50)
             }
         }
     }
@@ -163,17 +176,51 @@ class MusicPlayerController @Inject constructor(
     fun playQueue(tracks: List<AudioTrack>, startIndex: Int = 0) {
         if (tracks.isEmpty()) return
         currentPlaylist = tracks
+        _currentQueue.value = tracks
         val mediaItems = tracks.map { it.toMediaItem() }
 
         controller?.let { player ->
             player.setMediaItems(mediaItems, startIndex, 0L)
             player.prepare()
+            val pitchFactor = PlayerState.semitonesToPitchFactor(_playerState.value.pitchSemitones)
+            player.playbackParameters = androidx.media3.common.PlaybackParameters(_playerState.value.playbackSpeed, pitchFactor)
             player.play()
         }
     }
 
     fun playSingleTrack(track: AudioTrack) {
         playQueue(listOf(track), 0)
+    }
+
+    fun removeFromQueue(index: Int) {
+        if (index !in currentPlaylist.indices) return
+        val updated = currentPlaylist.toMutableList().apply { removeAt(index) }
+        currentPlaylist = updated
+        _currentQueue.value = updated
+        controller?.removeMediaItem(index)
+    }
+
+    fun moveQueueItem(fromIndex: Int, toIndex: Int) {
+        if (fromIndex !in currentPlaylist.indices || toIndex !in currentPlaylist.indices) return
+        val updated = currentPlaylist.toMutableList()
+        val item = updated.removeAt(fromIndex)
+        updated.add(toIndex, item)
+        currentPlaylist = updated
+        _currentQueue.value = updated
+        controller?.moveMediaItem(fromIndex, toIndex)
+    }
+
+    fun addToQueue(track: AudioTrack) {
+        val updated = currentPlaylist + track
+        currentPlaylist = updated
+        _currentQueue.value = updated
+        controller?.addMediaItem(track.toMediaItem())
+    }
+
+    fun skipToQueueIndex(index: Int) {
+        if (index in currentPlaylist.indices) {
+            controller?.seekToDefaultPosition(index)
+        }
     }
 
     fun togglePlayPause() {
@@ -191,16 +238,44 @@ class MusicPlayerController @Inject constructor(
         _playerState.update { it.copy(currentPositionMs = positionMs) }
     }
 
+    fun seekForward(intervalMs: Long = 10_000L) {
+        controller?.let { player ->
+            val currentPos = player.currentPosition.coerceAtLeast(0L)
+            val duration = player.duration
+            val maxLimit = if (duration > 0) duration else Long.MAX_VALUE
+            val targetPos = (currentPos + intervalMs).coerceAtMost(maxLimit)
+            seekTo(targetPos)
+        }
+    }
+
+    fun seekBackward(intervalMs: Long = 10_000L) {
+        controller?.let { player ->
+            val currentPos = player.currentPosition.coerceAtLeast(0L)
+            val targetPos = (currentPos - intervalMs).coerceAtLeast(0L)
+            seekTo(targetPos)
+        }
+    }
+
     fun skipNext() {
-        controller?.seekToNextMediaItem()
+        controller?.let { player ->
+            if (player.hasNextMediaItem()) {
+                player.seekToNextMediaItem()
+            } else if (currentPlaylist.size > 1) {
+                player.seekToDefaultPosition(0)
+            } else {
+                seekForward(10_000L)
+            }
+        }
     }
 
     fun skipPrevious() {
         controller?.let { player ->
             if (player.currentPosition > 3000) {
                 player.seekTo(0L)
-            } else {
+            } else if (player.hasPreviousMediaItem()) {
                 player.seekToPreviousMediaItem()
+            } else {
+                player.seekTo(0L)
             }
         }
     }
@@ -234,6 +309,8 @@ class MusicPlayerController @Inject constructor(
         val clamped = speed.coerceIn(0.25f, 3.00f)
         val rounded = (kotlin.math.round(clamped * 100) / 100f)
         _playerState.update { it.copy(playbackSpeed = rounded) }
+        val pitchFactor = PlayerState.semitonesToPitchFactor(_playerState.value.pitchSemitones)
+        controller?.playbackParameters = androidx.media3.common.PlaybackParameters(rounded, pitchFactor)
         val bundle = Bundle().apply {
             putFloat(MusicPlaybackService.EXTRA_SPEED, rounded)
         }
@@ -254,6 +331,8 @@ class MusicPlayerController @Inject constructor(
     fun setPitch(semitones: Int) {
         val clamped = semitones.coerceIn(-12, 12)
         _playerState.update { it.copy(pitchSemitones = clamped) }
+        val pitchFactor = PlayerState.semitonesToPitchFactor(clamped)
+        controller?.playbackParameters = androidx.media3.common.PlaybackParameters(_playerState.value.playbackSpeed, pitchFactor)
         val bundle = Bundle().apply {
             putInt(MusicPlaybackService.EXTRA_PITCH_SEMITONES, clamped)
         }

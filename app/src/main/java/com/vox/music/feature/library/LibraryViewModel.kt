@@ -1,5 +1,6 @@
 package com.vox.music.feature.library
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.vox.music.core.model.AudioMetadata
@@ -8,6 +9,7 @@ import com.vox.music.core.model.DirectoryGroup
 import com.vox.music.core.model.Playlist
 import com.vox.music.core.storage.repository.AudioRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -17,13 +19,23 @@ import javax.inject.Inject
 
 @HiltViewModel
 class LibraryViewModel @Inject constructor(
-    private val audioRepository: AudioRepository
+    private val audioRepository: AudioRepository,
+    @ApplicationContext private val context: Context
 ) : ViewModel() {
+
+    private val prefs = context.getSharedPreferences("vox_prefs", Context.MODE_PRIVATE)
 
     private val _uiState = MutableStateFlow(LibraryUiState())
     val uiState: StateFlow<LibraryUiState> = _uiState.asStateFlow()
 
     init {
+        val savedSort = prefs.getString("track_sort_order", TrackSortOrder.TITLE_ASC.name)
+        val initialSort = try {
+            TrackSortOrder.valueOf(savedSort ?: TrackSortOrder.TITLE_ASC.name)
+        } catch (e: Exception) {
+            TrackSortOrder.TITLE_ASC
+        }
+        _uiState.update { it.copy(sortOrder = initialSort) }
         observeDatabase()
     }
 
@@ -49,6 +61,12 @@ class LibraryViewModel @Inject constructor(
         viewModelScope.launch {
             audioRepository.getAllPlaylists().collect { playlistList ->
                 _uiState.update { it.copy(playlists = playlistList) }
+            }
+        }
+
+        viewModelScope.launch {
+            audioRepository.getRecentSearches().collect { searches ->
+                _uiState.update { it.copy(recentSearches = searches) }
             }
         }
 
@@ -274,6 +292,44 @@ class LibraryViewModel @Inject constructor(
             is LibraryIntent.RemoveTrackFromPlaylist -> {
                 viewModelScope.launch {
                     audioRepository.removeTrackFromPlaylist(intent.playlistId, intent.trackId)
+                }
+            }
+
+            // Sorting & Search History
+            is LibraryIntent.SetSortOrder -> {
+                prefs.edit().putString("track_sort_order", intent.order.name).apply()
+                _uiState.update { it.copy(sortOrder = intent.order, showSortBottomSheet = false) }
+            }
+
+            is LibraryIntent.SetShowSortBottomSheet -> {
+                _uiState.update { it.copy(showSortBottomSheet = intent.show) }
+            }
+
+            is LibraryIntent.SetSearchViewOpen -> {
+                _uiState.update {
+                    it.copy(
+                        isSearchViewOpen = intent.open,
+                        searchQuery = if (!intent.open) "" else it.searchQuery,
+                        searchResults = if (!intent.open) emptyList() else it.searchResults
+                    )
+                }
+            }
+
+            is LibraryIntent.AddSearchHistory -> {
+                viewModelScope.launch {
+                    audioRepository.addSearchQuery(intent.query)
+                }
+            }
+
+            is LibraryIntent.DeleteSearchHistory -> {
+                viewModelScope.launch {
+                    audioRepository.deleteSearchQuery(intent.id)
+                }
+            }
+
+            is LibraryIntent.ClearSearchHistory -> {
+                viewModelScope.launch {
+                    audioRepository.clearSearchHistory()
                 }
             }
         }

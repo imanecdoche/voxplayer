@@ -1,5 +1,6 @@
 package com.vox.music.feature.library
 
+import com.vox.music.core.database.entity.SearchHistoryEntity
 import com.vox.music.core.model.AudioMetadata
 import com.vox.music.core.model.AudioTrack
 import com.vox.music.core.model.DirectoryGroup
@@ -12,12 +13,24 @@ enum class LibraryTab {
     FAVORITES
 }
 
+enum class TrackSortOrder(val displayName: String) {
+    TITLE_ASC("A to Z (Title)"),
+    TITLE_DESC("Z to A (Title)"),
+    DATE_ADDED_DESC("Date Added (Newest)"),
+    DATE_ADDED_ASC("Date Added (Oldest)"),
+    DURATION_DESC("Length (Longest)"),
+    DURATION_ASC("Length (Shortest)")
+}
+
 data class LibraryUiState(
     val selectedTab: LibraryTab = LibraryTab.FOLDERS,
     val selectedFolder: DirectoryGroup? = null,
     val selectedPlaylist: Playlist? = null,
     val searchQuery: String = "",
     val isSearchActive: Boolean = false,
+    val isSearchViewOpen: Boolean = false,
+    val sortOrder: TrackSortOrder = TrackSortOrder.TITLE_ASC,
+    val showSortBottomSheet: Boolean = false,
     val folders: List<DirectoryGroup> = emptyList(),
     val tracks: List<AudioTrack> = emptyList(),
     val folderTracks: List<AudioTrack> = emptyList(),
@@ -25,6 +38,7 @@ data class LibraryUiState(
     val playlists: List<Playlist> = emptyList(),
     val playlistTracks: List<AudioTrack> = emptyList(),
     val searchResults: List<AudioTrack> = emptyList(),
+    val recentSearches: List<SearchHistoryEntity> = emptyList(),
     val activeActionTrack: AudioTrack? = null,
     val trackForTagEditor: AudioTrack? = null,
     val trackForRename: AudioTrack? = null,
@@ -38,12 +52,22 @@ data class LibraryUiState(
     val hasStoragePermission: Boolean = false
 ) {
     val displayedTracks: List<AudioTrack>
-        get() = when {
-            isSearchActive && searchQuery.isNotBlank() -> searchResults
-            selectedFolder != null -> folderTracks
-            selectedPlaylist != null -> playlistTracks
-            selectedTab == LibraryTab.FAVORITES -> favoriteTracks
-            else -> tracks
+        get() {
+            val baseList = when {
+                isSearchActive && searchQuery.isNotBlank() -> searchResults
+                selectedFolder != null -> folderTracks
+                selectedPlaylist != null -> playlistTracks
+                selectedTab == LibraryTab.FAVORITES -> favoriteTracks
+                else -> tracks
+            }
+            return when (sortOrder) {
+                TrackSortOrder.TITLE_ASC -> baseList.sortedBy { it.title.lowercase() }
+                TrackSortOrder.TITLE_DESC -> baseList.sortedByDescending { it.title.lowercase() }
+                TrackSortOrder.DATE_ADDED_DESC -> baseList.sortedByDescending { it.dateAdded }
+                TrackSortOrder.DATE_ADDED_ASC -> baseList.sortedBy { it.dateAdded }
+                TrackSortOrder.DURATION_DESC -> baseList.sortedByDescending { it.durationMs }
+                TrackSortOrder.DURATION_ASC -> baseList.sortedBy { it.durationMs }
+            }
         }
 
     override fun equals(other: Any?): Boolean {

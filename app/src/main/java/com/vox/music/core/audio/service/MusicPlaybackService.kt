@@ -53,13 +53,14 @@ class MusicPlaybackService : MediaSessionService() {
             player?.let { p ->
                 val b = pointB
                 val a = pointA
-                if (b != null && a != null && p.isPlaying) {
-                    if (p.currentPosition >= b) {
+                if (b != null && a != null && b > a && p.isPlaying) {
+                    val currentPos = p.currentPosition
+                    if (currentPos >= b || currentPos < a) {
                         p.seekTo(a)
                     }
                 }
             }
-            handler.postDelayed(this, 50)
+            handler.postDelayed(this, 40)
         }
     }
 
@@ -95,16 +96,20 @@ class MusicPlaybackService : MediaSessionService() {
     }
 
     private fun initializePlayer() {
-        // Build RenderersFactory with Sonic AudioProcessor injected into AudioSink
+        // Build DefaultAudioSink with SonicAudioProcessor injected and AudioTrackPlaybackParams disabled
+        // so that SonicAudioProcessor handles all speed and pitch shifts seamlessly
+        val audioSink = DefaultAudioSink.Builder(this)
+            .setAudioProcessors(arrayOf<AudioProcessor>(sonicHolder.processor))
+            .setEnableAudioTrackPlaybackParams(false)
+            .build()
+
         val renderersFactory = object : DefaultRenderersFactory(this) {
             override fun buildAudioSink(
                 context: android.content.Context,
                 enableFloatOutput: Boolean,
                 enableAudioTrackPlaybackParams: Boolean
             ): AudioSink {
-                return DefaultAudioSink.Builder(context)
-                    .setAudioProcessors(arrayOf<AudioProcessor>(sonicHolder.processor))
-                    .build()
+                return audioSink
             }
         }
 
@@ -163,12 +168,16 @@ class MusicPlaybackService : MediaSessionService() {
                 ACTION_SET_SPEED -> {
                     val speed = args.getFloat(EXTRA_SPEED, 1.0f)
                     sonicHolder.setSpeed(speed)
+                    val pitchFactor = com.vox.music.core.audio.model.PlayerState.semitonesToPitchFactor(sonicHolder.pitchSemitones)
+                    player?.playbackParameters = androidx.media3.common.PlaybackParameters(speed, pitchFactor)
                     return Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
                 }
 
                 ACTION_SET_PITCH -> {
                     val semitones = args.getInt(EXTRA_PITCH_SEMITONES, 0)
                     sonicHolder.setPitchSemitones(semitones)
+                    val pitchFactor = com.vox.music.core.audio.model.PlayerState.semitonesToPitchFactor(semitones)
+                    player?.playbackParameters = androidx.media3.common.PlaybackParameters(sonicHolder.speed, pitchFactor)
                     return Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
                 }
 

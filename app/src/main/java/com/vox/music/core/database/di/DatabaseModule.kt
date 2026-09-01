@@ -52,4 +52,12 @@ object DatabaseModule {
     ): com.vox.music.core.database.dao.AudioAnalysisDao {
         return database.audioAnalysisDao()
     }
+
+    @Provides
+    @Singleton
+    fun provideSearchHistoryDao(
+        database: VoxDatabase
+    ): com.vox.music.core.database.dao.SearchHistoryDao {
+        return database.searchHistoryDao()
+    }
 }

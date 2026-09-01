@@ -5,9 +5,11 @@ import com.vox.music.core.audio.clipper.AudioClipperEngine
 import com.vox.music.core.audio.clipper.WaveformExtractor
 import com.vox.music.core.database.dao.AudioTrackDao
 import com.vox.music.core.database.dao.PlaylistDao
+import com.vox.music.core.database.dao.SearchHistoryDao
 import com.vox.music.core.database.entity.AudioTrackEntity
 import com.vox.music.core.database.entity.PlaylistEntity
 import com.vox.music.core.database.entity.PlaylistTrackCrossRef
+import com.vox.music.core.database.entity.SearchHistoryEntity
 import com.vox.music.core.metadata.AudioTagManager
 import com.vox.music.core.model.AudioMetadata
 import com.vox.music.core.model.AudioTrack
@@ -33,6 +35,7 @@ class AudioRepositoryImpl @Inject constructor(
     private val audioScanner: AudioScanner,
     private val audioTrackDao: AudioTrackDao,
     private val playlistDao: PlaylistDao,
+    private val searchHistoryDao: SearchHistoryDao,
     private val mediaStoreObserver: MediaStoreObserver,
     private val storageFileManager: StorageFileManager,
     private val m3uPlaylistManager: M3uPlaylistManager,
@@ -230,5 +233,27 @@ class AudioRepositoryImpl @Inject constructor(
         customName: String?
     ): Result<File> {
         return audioClipperEngine.trimAudioLossless(track, startMs, endMs, customName)
+    }
+
+    // ==================== SEARCH HISTORY ====================
+
+    override fun getRecentSearches(): Flow<List<SearchHistoryEntity>> {
+        return searchHistoryDao.getRecentSearches()
+    }
+
+    override suspend fun addSearchQuery(query: String) = withContext(Dispatchers.IO) {
+        if (query.isNotBlank()) {
+            searchHistoryDao.insertSearch(
+                SearchHistoryEntity(query = query.trim(), timestamp = System.currentTimeMillis())
+            )
+        }
+    }
+
+    override suspend fun deleteSearchQuery(id: Long) = withContext(Dispatchers.IO) {
+        searchHistoryDao.deleteSearch(id)
+    }
+
+    override suspend fun clearSearchHistory() = withContext(Dispatchers.IO) {
+        searchHistoryDao.clearSearchHistory()
     }
 }

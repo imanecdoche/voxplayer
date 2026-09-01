@@ -9,6 +9,7 @@ import com.vox.music.core.lyrics.LrcParser
 import com.vox.music.core.lyrics.model.LyricsData
 import com.vox.music.core.model.AudioTrack
 import com.vox.music.core.model.ChordEvent
+import com.vox.music.core.model.Playlist
 import com.vox.music.core.storage.repository.AudioAnalysisRepository
 import com.vox.music.core.storage.repository.AudioRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -32,6 +33,13 @@ class PlayerViewModel @Inject constructor(
 
     val playerState: StateFlow<PlayerState> = playerController.playerState
     val equalizerState = playerController.equalizerState
+    val currentQueue: StateFlow<List<AudioTrack>> = playerController.currentQueue
+
+    val allTracks: StateFlow<List<AudioTrack>> = audioRepository.getAllTracks()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val playlists: StateFlow<List<Playlist>> = audioRepository.getAllPlaylists()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     private val _lyricsData = MutableStateFlow(LyricsData())
     val lyricsData: StateFlow<LyricsData> = _lyricsData.asStateFlow()
@@ -135,6 +143,14 @@ class PlayerViewModel @Inject constructor(
         playerController.seekTo(positionMs)
     }
 
+    fun seekForward(intervalMs: Long = 10_000L) {
+        playerController.seekForward(intervalMs)
+    }
+
+    fun seekBackward(intervalMs: Long = 10_000L) {
+        playerController.seekBackward(intervalMs)
+    }
+
     fun skipNext() {
         playerController.skipNext()
     }
@@ -194,6 +210,37 @@ class PlayerViewModel @Inject constructor(
     fun toggleFavorite(trackId: Long, isFavorite: Boolean) {
         viewModelScope.launch {
             audioRepository.toggleFavorite(trackId, isFavorite)
+        }
+    }
+
+    fun removeFromQueue(index: Int) {
+        playerController.removeFromQueue(index)
+    }
+
+    fun moveQueueItem(fromIndex: Int, toIndex: Int) {
+        playerController.moveQueueItem(fromIndex, toIndex)
+    }
+
+    fun addToQueue(track: AudioTrack) {
+        playerController.addToQueue(track)
+    }
+
+    fun skipToQueueIndex(index: Int) {
+        playerController.skipToQueueIndex(index)
+    }
+
+    fun addTrackToPlaylist(playlistId: Long, trackId: Long) {
+        viewModelScope.launch {
+            audioRepository.addTrackToPlaylist(playlistId, trackId)
+        }
+    }
+
+    fun createPlaylist(name: String, initialTrackId: Long? = null) {
+        viewModelScope.launch {
+            val id = audioRepository.createPlaylist(name)
+            if (initialTrackId != null && id > 0) {
+                audioRepository.addTrackToPlaylist(id, initialTrackId)
+            }
         }
     }
 }

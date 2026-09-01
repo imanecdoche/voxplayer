@@ -62,6 +62,8 @@ fun AudioInspectorBottomSheet(
             InspectorRow(label = "Sample Rate", value = if (metadata.sampleRateHz > 0) "${metadata.sampleRateHz} Hz" else "Unknown")
             InspectorRow(label = "Channels", value = if (metadata.channels == 2) "Stereo (2 Ch)" else if (metadata.channels == 1) "Mono (1 Ch)" else "${metadata.channels} Ch")
             InspectorRow(label = "Exact Duration", value = "${metadata.durationFormatted} (${metadata.durationMs} ms)")
+            InspectorRow(label = "BPM / Tempo", value = if (metadata.bpm != null) "${metadata.bpm.toInt()} BPM" else "Analyzing / None")
+            InspectorRow(label = "Musical Key", value = metadata.musicalKey ?: "Analyzing / None")
             InspectorRow(label = "File Size", value = metadata.fileSizeFormatted)
             InspectorRow(label = "File Path", value = metadata.filePath)
 

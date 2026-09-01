@@ -41,4 +41,12 @@ sealed interface LibraryIntent {
     data class DeletePlaylist(val playlistId: Long) : LibraryIntent
     data class AddTrackToPlaylist(val playlistId: Long, val trackId: Long) : LibraryIntent
     data class RemoveTrackFromPlaylist(val playlistId: Long, val trackId: Long) : LibraryIntent
+
+    // Sorting & Search History Operations
+    data class SetSortOrder(val order: TrackSortOrder) : LibraryIntent
+    data class SetShowSortBottomSheet(val show: Boolean) : LibraryIntent
+    data class SetSearchViewOpen(val open: Boolean) : LibraryIntent
+    data class AddSearchHistory(val query: String) : LibraryIntent
+    data class DeleteSearchHistory(val id: Long) : LibraryIntent
+    data object ClearSearchHistory : LibraryIntent
 }

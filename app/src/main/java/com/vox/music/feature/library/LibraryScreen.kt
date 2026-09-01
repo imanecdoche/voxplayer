@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import com.composables.icons.lucide.ArrowLeft
+import com.composables.icons.lucide.ArrowUpDown
 import com.composables.icons.lucide.Folder
 import com.composables.icons.lucide.Heart
 import com.composables.icons.lucide.ListMusic
@@ -59,10 +60,12 @@ import com.vox.music.feature.library.components.FolderListItem
 import com.vox.music.feature.library.components.PermissionRequestView
 import com.vox.music.feature.library.components.PlaylistsView
 import com.vox.music.feature.library.components.RenameFileDialog
+import com.vox.music.feature.library.components.SortBottomSheet
 import com.vox.music.feature.library.components.TagEditorDialog
 import com.vox.music.feature.library.components.TrackActionsSheet
 import com.vox.music.feature.library.components.TrackDetailsDialog
 import com.vox.music.feature.library.components.TrackListItem
+import com.vox.music.feature.search.SearchScreen
 import com.vox.music.ui.components.HairlineDivider
 import com.vox.music.ui.components.VoxHeader
 import com.vox.music.ui.theme.VoxTheme
@@ -100,6 +103,31 @@ fun LibraryScreen(
         viewModel.onIntent(LibraryIntent.SetPermissionGranted(isGranted))
     }
 
+    // Full Search Screen Overlay
+    if (uiState.isSearchViewOpen) {
+        SearchScreen(
+            searchQuery = uiState.searchQuery,
+            searchResults = uiState.searchResults,
+            recentSearches = uiState.recentSearches,
+            onQueryChange = { viewModel.onIntent(LibraryIntent.UpdateSearchQuery(it)) },
+            onSearchSubmit = { query ->
+                viewModel.onIntent(LibraryIntent.AddSearchHistory(query))
+            },
+            onClearQuery = { viewModel.onIntent(LibraryIntent.UpdateSearchQuery("")) },
+            onDeleteHistoryItem = { id -> viewModel.onIntent(LibraryIntent.DeleteSearchHistory(id)) },
+            onClearAllHistory = { viewModel.onIntent(LibraryIntent.ClearSearchHistory) },
+            onTrackClick = { track, _ ->
+                onTrackSelected(track)
+                viewModel.onIntent(LibraryIntent.SetSearchViewOpen(false))
+            },
+            onTrackOptionsClick = { track ->
+                viewModel.onIntent(LibraryIntent.OpenTrackActions(track))
+            },
+            onNavigateBack = { viewModel.onIntent(LibraryIntent.SetSearchViewOpen(false)) }
+        )
+        return
+    }
+
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -108,7 +136,7 @@ fun LibraryScreen(
         // Top Header
         when {
             uiState.selectedFolder != null -> {
-                // Folder detail header
+                // Folder detail header (Back + Title & Count + Search & Sort)
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -132,10 +160,35 @@ fun LibraryScreen(
                             color = MaterialTheme.colorScheme.onBackground
                         )
                         Text(
-                            text = "${uiState.folderTracks.size} tracks",
+                            text = "${uiState.displayedTracks.size} tracks • ${uiState.sortOrder.displayName}",
                             style = MaterialTheme.typography.labelSmall,
                             color = VoxTheme.colors.subtleText
                         )
+                    }
+
+                    // Action Buttons: Search & Sort
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        IconButton(
+                            onClick = { viewModel.onIntent(LibraryIntent.SetSearchViewOpen(true)) }
+                        ) {
+                            Icon(
+                                imageVector = Lucide.Search,
+                                contentDescription = "Search in Folder",
+                                tint = MaterialTheme.colorScheme.onBackground,
+                                modifier = Modifier.size(22.dp)
+                            )
+                        }
+
+                        IconButton(
+                            onClick = { viewModel.onIntent(LibraryIntent.SetShowSortBottomSheet(true)) }
+                        ) {
+                            Icon(
+                                imageVector = Lucide.ArrowUpDown,
+                                contentDescription = "Sort Tracks",
+                                tint = MaterialTheme.colorScheme.onBackground,
+                                modifier = Modifier.size(22.dp)
+                            )
+                        }
                     }
                 }
             }
@@ -316,7 +369,7 @@ fun LibraryScreen(
 
                 uiState.selectedFolder != null -> {
                     TrackListView(
-                        tracks = uiState.folderTracks,
+                        tracks = uiState.displayedTracks,
                         emptyMessage = "No audio tracks in this folder",
                         onTrackSelected = onTrackSelected,
                         onToggleFavorite = { trackId, isFav ->
@@ -540,6 +593,15 @@ fun LibraryScreen(
                 showCreatePlaylistDialog = false
             },
             onDismiss = { showCreatePlaylistDialog = false }
+        )
+    }
+
+    // Sort Tracks Bottom Sheet
+    if (uiState.showSortBottomSheet) {
+        SortBottomSheet(
+            currentSortOrder = uiState.sortOrder,
+            onSortSelected = { viewModel.onIntent(LibraryIntent.SetSortOrder(it)) },
+            onDismiss = { viewModel.onIntent(LibraryIntent.SetShowSortBottomSheet(false)) }
         )
     }
 }

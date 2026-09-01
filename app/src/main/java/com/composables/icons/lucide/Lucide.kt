@@ -36,7 +36,24 @@ object Lucide {
     val RotateCw: ImageVector @Composable get() = ImageVector.vectorResource(R.drawable.lucide_ic_rotate_cw)
     val Image: ImageVector @Composable get() = ImageVector.vectorResource(R.drawable.lucide_ic_image)
     val Check: ImageVector @Composable get() = ImageVector.vectorResource(R.drawable.lucide_ic_check)
+    val Settings: ImageVector @Composable get() = ImageVector.vectorResource(R.drawable.lucide_ic_settings)
+    val Tv: ImageVector @Composable get() = ImageVector.vectorResource(R.drawable.lucide_ic_tv)
+    val SquarePlay: ImageVector @Composable get() = ImageVector.vectorResource(R.drawable.lucide_ic_tv_minimal_play)
+    val Mic: ImageVector @Composable get() = ImageVector.vectorResource(R.drawable.lucide_ic_mic)
+    val Info: ImageVector @Composable get() = ImageVector.vectorResource(R.drawable.lucide_ic_info)
+    val GripVertical: ImageVector @Composable get() = ImageVector.vectorResource(R.drawable.lucide_ic_grip_vertical)
+    val ArrowUpDown: ImageVector @Composable get() = ImageVector.vectorResource(R.drawable.lucide_ic_arrow_up_down)
+    val History: ImageVector @Composable get() = ImageVector.vectorResource(R.drawable.lucide_ic_history)
 }
+
+val Settings: ImageVector @Composable get() = Lucide.Settings
+val Tv: ImageVector @Composable get() = Lucide.Tv
+val SquarePlay: ImageVector @Composable get() = Lucide.SquarePlay
+val Mic: ImageVector @Composable get() = Lucide.Mic
+val Info: ImageVector @Composable get() = Lucide.Info
+val GripVertical: ImageVector @Composable get() = Lucide.GripVertical
+val ArrowUpDown: ImageVector @Composable get() = Lucide.ArrowUpDown
+val History: ImageVector @Composable get() = Lucide.History
 
 val Play: ImageVector @Composable get() = Lucide.Play
 val Pause: ImageVector @Composable get() = Lucide.Pause
