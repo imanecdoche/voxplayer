@@ -1,6 +1,8 @@
 package com.vox.music.feature.settings
 
 import android.content.Context
+import android.content.Intent
+import android.os.Build
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -15,7 +17,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.border
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -25,23 +29,28 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import android.content.Intent
+import androidx.compose.ui.window.Dialog
+import com.composables.icons.lucide.Activity
 import com.composables.icons.lucide.ArrowLeft
+import com.composables.icons.lucide.Check
 import com.composables.icons.lucide.ChevronRight
 import com.composables.icons.lucide.Lucide
 import com.composables.icons.lucide.Sliders
 import com.vox.music.feature.customization.adcuzActivity
 import com.vox.music.ui.components.HairlineDivider
 import com.vox.music.ui.components.VoxSlider
+import com.vox.music.ui.motion.VoxEasingCurve
 import com.vox.music.ui.theme.VoxTheme
 import kotlin.math.roundToInt
 
@@ -66,6 +75,30 @@ fun SettingsScreen(
     var dynamicBgIntensity by remember {
         mutableFloatStateOf(prefs.getFloat("dynamic_background_intensity", 0.22f))
     }
+
+    var motionBlurEnabled by remember {
+        mutableStateOf(prefs.getBoolean("motion_blur_enabled", false))
+    }
+    var motionBlurIntensity by remember {
+        mutableFloatStateOf(prefs.getFloat("motion_blur_intensity", 5.0f))
+    }
+
+    val initialCurveStr = remember(prefs) {
+        prefs.getString("animation_easing_curve", VoxEasingCurve.EASE_IN_OUT.name) ?: VoxEasingCurve.EASE_IN_OUT.name
+    }
+    var selectedEasing by remember {
+        mutableStateOf(
+            try {
+                VoxEasingCurve.valueOf(initialCurveStr)
+            } catch (e: Exception) {
+                VoxEasingCurve.EASE_IN_OUT
+            }
+        )
+    }
+    var animationDurationMs by remember {
+        mutableIntStateOf(prefs.getInt("animation_duration_ms", 300))
+    }
+    var showEasingDialog by remember { mutableStateOf(false) }
 
     var lockscreenPlayerEnabled by remember {
         mutableStateOf(prefs.getBoolean("lockscreen_player_enabled", true))
@@ -389,6 +422,225 @@ fun SettingsScreen(
                 }
             }
 
+            Spacer(modifier = Modifier.height(8.dp))
+            HairlineDivider()
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Motion Blur Toggle
+            val isRenderEffectSupported = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable(enabled = isRenderEffectSupported) {
+                        val newVal = !motionBlurEnabled
+                        motionBlurEnabled = newVal
+                        prefs.edit().putBoolean("motion_blur_enabled", newVal).apply()
+                    }
+                    .padding(vertical = 8.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f).padding(end = 16.dp)) {
+                    Text(
+                        text = "Motion Blur",
+                        style = MaterialTheme.typography.bodyLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = if (isRenderEffectSupported) MaterialTheme.colorScheme.onBackground else VoxTheme.colors.subtleText
+                    )
+                    Text(
+                        text = if (isRenderEffectSupported) {
+                            "Terapkan efek blur dinamis berbasis kecepatan gerak pada swipe artwork dan transisi UI."
+                        } else {
+                            "Tidak didukung pada perangkat ini (Memerlukan Android 12+ / API 31+)."
+                        },
+                        style = MaterialTheme.typography.bodySmall,
+                        color = VoxTheme.colors.subtleText
+                    )
+                }
+
+                if (isRenderEffectSupported) {
+                    Switch(
+                        checked = motionBlurEnabled,
+                        onCheckedChange = {
+                            motionBlurEnabled = it
+                            prefs.edit().putBoolean("motion_blur_enabled", it).apply()
+                        }
+                    )
+                }
+            }
+
+            // Motion Blur Intensity Custom Slider (1.0 - 10.0)
+            if (isRenderEffectSupported && motionBlurEnabled) {
+                Spacer(modifier = Modifier.height(8.dp))
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(start = 4.dp, end = 4.dp, bottom = 12.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Blur Intensity",
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Medium,
+                            color = MaterialTheme.colorScheme.onBackground
+                        )
+                        Text(
+                            text = "%.1f".format(motionBlurIntensity),
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onBackground
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    VoxSlider(
+                        value = motionBlurIntensity,
+                        onValueChange = {
+                            motionBlurIntensity = it.coerceIn(1.0f, 10.0f)
+                        },
+                        onValueChangeFinished = {
+                            prefs.edit().putFloat("motion_blur_intensity", motionBlurIntensity).apply()
+                        },
+                        valueRange = 1.0f..10.0f,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    Spacer(modifier = Modifier.height(6.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(
+                            text = "Low (1.0)",
+                            style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
+                            color = VoxTheme.colors.subtleText
+                        )
+                        Text(
+                            text = "High (10.0)",
+                            style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
+                            color = VoxTheme.colors.subtleText
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+            HairlineDivider()
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Animation Curve Selector
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { showEasingDialog = true }
+                    .padding(vertical = 10.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f).padding(end = 12.dp)) {
+                    Text(
+                        text = "Animation Curve (Easing)",
+                        style = MaterialTheme.typography.bodyLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onBackground
+                    )
+                    Text(
+                        text = "Karakteristik kurva percepatan transisi UI (${selectedEasing.displayName}).",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = VoxTheme.colors.subtleText
+                    )
+                }
+
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f))
+                        .border(1.dp, VoxTheme.colors.divider, RoundedCornerShape(8.dp))
+                        .padding(horizontal = 10.dp, vertical = 6.dp)
+                ) {
+                    Text(
+                        text = selectedEasing.displayName,
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onBackground
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Icon(
+                        imageVector = Lucide.ChevronRight,
+                        contentDescription = "Select Curve",
+                        tint = VoxTheme.colors.subtleText,
+                        modifier = Modifier.size(16.dp)
+                    )
+                }
+            }
+
+            // Animation Duration Slider (100ms - 1000ms, step 50ms)
+            Spacer(modifier = Modifier.height(6.dp))
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(start = 4.dp, end = 4.dp, bottom = 12.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Animation Duration",
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.Medium,
+                        color = MaterialTheme.colorScheme.onBackground
+                    )
+                    Text(
+                        text = "${animationDurationMs}ms",
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onBackground
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                VoxSlider(
+                    value = animationDurationMs.toFloat(),
+                    onValueChange = {
+                        val stepped = ((it / 50f).roundToInt() * 50).coerceIn(100, 1000)
+                        animationDurationMs = stepped
+                    },
+                    onValueChangeFinished = {
+                        prefs.edit().putInt("animation_duration_ms", animationDurationMs).apply()
+                    },
+                    valueRange = 100f..1000f,
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                Spacer(modifier = Modifier.height(6.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(
+                        text = "100ms",
+                        style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
+                        color = VoxTheme.colors.subtleText
+                    )
+                    Text(
+                        text = "1000ms",
+                        style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
+                        color = VoxTheme.colors.subtleText
+                    )
+                }
+            }
+
             Spacer(modifier = Modifier.height(16.dp))
             HairlineDivider()
             Spacer(modifier = Modifier.height(16.dp))
@@ -441,6 +693,77 @@ fun SettingsScreen(
             }
 
             Spacer(modifier = Modifier.height(24.dp))
+        }
+    }
+
+    // Animation Curve Selector Dialog
+    if (showEasingDialog) {
+        Dialog(onDismissRequest = { showEasingDialog = false }) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(18.dp))
+                    .background(MaterialTheme.colorScheme.surface)
+                    .border(1.dp, VoxTheme.colors.divider, RoundedCornerShape(18.dp))
+                    .padding(20.dp)
+            ) {
+                Text(
+                    text = "SELECT ANIMATION CURVE",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onBackground,
+                    letterSpacing = 1.sp
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+                HairlineDivider()
+                Spacer(modifier = Modifier.height(12.dp))
+
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .verticalScroll(rememberScrollState())
+                ) {
+                    VoxEasingCurve.values().forEach { curve ->
+                        val isSelected = curve == selectedEasing
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(10.dp))
+                                .clickable {
+                                    selectedEasing = curve
+                                    prefs.edit().putString("animation_easing_curve", curve.name).apply()
+                                    showEasingDialog = false
+                                }
+                                .padding(vertical = 10.dp, horizontal = 10.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f).padding(end = 12.dp)) {
+                                Text(
+                                    text = curve.displayName,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                    color = if (isSelected) MaterialTheme.colorScheme.onBackground else VoxTheme.colors.subtleText
+                                )
+                                Text(
+                                    text = curve.description,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = VoxTheme.colors.subtleText,
+                                    fontSize = 11.sp
+                                )
+                            }
+                            if (isSelected) {
+                                Icon(
+                                    imageVector = Lucide.Check,
+                                    contentDescription = "Selected",
+                                    tint = MaterialTheme.colorScheme.onBackground,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 }

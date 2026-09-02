@@ -1,6 +1,13 @@
 package com.vox.music.core.audio.routing
 
+import android.annotation.SuppressLint
+import android.bluetooth.BluetoothAdapter
+import android.bluetooth.BluetoothDevice
+import android.bluetooth.BluetoothManager
+import android.content.BroadcastReceiver
 import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
 import android.media.AudioDeviceCallback
 import android.media.AudioDeviceInfo
 import android.media.AudioManager
@@ -12,13 +19,13 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
 
 data class AudioRouteState(
     val isBluetoothConnected: Boolean = false,
     val bluetoothDeviceName: String = "",
+    val bluetoothBatteryLevel: Int = -1,
     val activeDeviceName: String = "Phone Speaker",
     val activeDeviceType: Int = AudioDeviceInfo.TYPE_BUILTIN_SPEAKER,
     val isRoutingToSpeaker: Boolean = false,
@@ -48,9 +55,60 @@ class AudioRouteManager @Inject constructor(
         }
     }
 
+    private val batteryReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            if (intent == null) return
+            val action = intent.action
+            if ("android.bluetooth.device.action.BATTERY_LEVEL_CHANGED" == action) {
+                val level = intent.getIntExtra("android.bluetooth.device.extra.BATTERY_LEVEL", -1)
+                if (level in 0..100) {
+                    _routeState.value = _routeState.value.copy(bluetoothBatteryLevel = level)
+                }
+            } else if (BluetoothDevice.ACTION_ACL_CONNECTED == action ||
+                       BluetoothDevice.ACTION_ACL_DISCONNECTED == action) {
+                updateRouteState()
+            }
+        }
+    }
+
     init {
         audioManager.registerAudioDeviceCallback(deviceCallback, handler)
+        val filter = IntentFilter().apply {
+            addAction("android.bluetooth.device.action.BATTERY_LEVEL_CHANGED")
+            addAction(BluetoothDevice.ACTION_ACL_CONNECTED)
+            addAction(BluetoothDevice.ACTION_ACL_DISCONNECTED)
+        }
+        try {
+            context.registerReceiver(batteryReceiver, filter)
+        } catch (e: Exception) {
+            // Ignore
+        }
         updateRouteState()
+    }
+
+    @SuppressLint("MissingPermission")
+    private fun fetchConnectedBluetoothBatteryLevel(): Int {
+        try {
+            val bluetoothManager = context.getSystemService(Context.BLUETOOTH_SERVICE) as? BluetoothManager
+            val adapter = bluetoothManager?.adapter ?: BluetoothAdapter.getDefaultAdapter() ?: return -1
+            if (!adapter.isEnabled) return -1
+
+            val bonded = adapter.bondedDevices ?: return -1
+            for (device in bonded) {
+                try {
+                    val method = device.javaClass.getMethod("getBatteryLevel")
+                    val level = method.invoke(device) as? Int ?: -1
+                    if (level in 0..100) {
+                        return level
+                    }
+                } catch (e: Exception) {
+                    // Ignore
+                }
+            }
+        } catch (e: Exception) {
+            // Ignore
+        }
+        return -1
     }
 
     fun updateRouteState() {
@@ -59,6 +117,13 @@ class AudioRouteManager @Inject constructor(
 
         val isBtConnected = bluetoothDevice != null
         val btName = bluetoothDevice?.productName?.toString() ?: ""
+
+        val currentBattery = if (isBtConnected) {
+            val queried = fetchConnectedBluetoothBatteryLevel()
+            if (queried in 0..100) queried else _routeState.value.bluetoothBatteryLevel
+        } else {
+            -1
+        }
 
         val isRoutingToSpeaker = _routeState.value.isRoutingToSpeaker
 
@@ -108,6 +173,7 @@ class AudioRouteManager @Inject constructor(
         _routeState.value = _routeState.value.copy(
             isBluetoothConnected = isBtConnected,
             bluetoothDeviceName = btName,
+            bluetoothBatteryLevel = currentBattery,
             activeDeviceName = activeName,
             activeDeviceType = activeType,
             isSpatialAudioAvailable = spatialAvailable,

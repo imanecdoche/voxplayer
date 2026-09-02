@@ -47,6 +47,7 @@ import com.composables.icons.lucide.SkipForward
 import com.composables.icons.lucide.Sliders
 import com.composables.icons.lucide.Tv
 import com.vox.music.feature.player.components.AudioOutputBottomSheet
+import com.vox.music.ui.components.dynamicMotionBlur
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -129,6 +130,8 @@ fun PlayerScreen(
     val prefs = remember(context) { context.getSharedPreferences("vox_prefs", Context.MODE_PRIVATE) }
     val dynamicBackgroundEnabled = remember(prefs) { prefs.getBoolean("dynamic_background_enabled", true) }
     val dynamicBgIntensity = remember(prefs) { prefs.getFloat("dynamic_background_intensity", 0.22f) }
+    val motionBlurEnabled = remember(prefs) { prefs.getBoolean("motion_blur_enabled", false) }
+    val motionBlurIntensity = remember(prefs) { prefs.getFloat("motion_blur_intensity", 5.0f) }
     var dominantColor by remember { mutableStateOf<Color?>(null) }
 
     LaunchedEffect(track.filePath, dynamicBackgroundEnabled) {
@@ -234,6 +237,8 @@ fun PlayerScreen(
         }
     }
 
+    val dismissVelocity = (kotlin.math.abs(screenOffsetY) / 250f).coerceIn(0f, 1f)
+
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -262,6 +267,11 @@ fun PlayerScreen(
                     }
                 )
             }
+            .dynamicMotionBlur(
+                velocity = dismissVelocity,
+                intensity = motionBlurIntensity,
+                isEnabled = motionBlurEnabled
+            )
             .background(Color.White)
             .background(bgBrush)
             .statusBarsPadding()
@@ -359,6 +369,8 @@ fun PlayerScreen(
             pageSpacing = 24.dp
         ) { page ->
             val pageTrack = queueList.getOrNull(page) ?: track
+            val swipeVelocity = kotlin.math.abs(pagerState.currentPageOffsetFraction)
+
             Box(
                 modifier = Modifier.fillMaxSize(),
                 contentAlignment = Alignment.Center
@@ -368,6 +380,11 @@ fun PlayerScreen(
                         .fillMaxHeight()
                         .aspectRatio(1f)
                         .clip(RoundedCornerShape(28.dp))
+                        .dynamicMotionBlur(
+                            velocity = swipeVelocity,
+                            intensity = motionBlurIntensity,
+                            isEnabled = motionBlurEnabled
+                        )
                         .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(28.dp)),
                     contentAlignment = Alignment.Center
                 ) {

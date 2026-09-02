@@ -46,8 +46,10 @@ object Lucide {
     val History: ImageVector @Composable get() = ImageVector.vectorResource(R.drawable.lucide_ic_history)
     val Eraser: ImageVector @Composable get() = ImageVector.vectorResource(R.drawable.lucide_ic_eraser)
     val Bluetooth: ImageVector @Composable get() = ImageVector.vectorResource(R.drawable.lucide_ic_bluetooth)
+    val Battery: ImageVector @Composable get() = ImageVector.vectorResource(R.drawable.lucide_ic_battery)
 }
 
+val Battery: ImageVector @Composable get() = Lucide.Battery
 val Bluetooth: ImageVector @Composable get() = Lucide.Bluetooth
 val Settings: ImageVector @Composable get() = Lucide.Settings
 val Tv: ImageVector @Composable get() = Lucide.Tv

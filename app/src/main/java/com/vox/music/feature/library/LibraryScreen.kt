@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import com.composables.icons.lucide.ArrowLeft
 import com.composables.icons.lucide.ArrowUpDown
 import com.composables.icons.lucide.Folder
@@ -44,6 +45,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -55,8 +57,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import kotlinx.coroutines.launch
 import com.vox.music.core.model.AudioTrack
 import com.vox.music.feature.library.components.AddToPlaylistDialog
+import com.vox.music.feature.library.components.AlphabetIndexerBar
 import com.vox.music.feature.library.components.FolderListItem
 import com.vox.music.feature.library.components.PermissionRequestView
 import com.vox.music.feature.library.components.PlaylistsView
@@ -399,6 +403,7 @@ fun LibraryScreen(
                         emptyMessage = "No audio tracks in this folder",
                         currentTrackId = playerState.currentTrack?.id,
                         isPlaying = playerState.isPlaying,
+                        sortOrder = uiState.sortOrder,
                         onTrackSelected = onTrackSelected,
                         onToggleFavorite = { trackId, isFav ->
                             viewModel.onIntent(LibraryIntent.ToggleFavorite(trackId, isFav))
@@ -415,6 +420,7 @@ fun LibraryScreen(
                         emptyMessage = "No tracks in this playlist.\nTap ':' on any track to add it.",
                         currentTrackId = playerState.currentTrack?.id,
                         isPlaying = playerState.isPlaying,
+                        sortOrder = uiState.sortOrder,
                         onTrackSelected = onTrackSelected,
                         onToggleFavorite = { trackId, isFav ->
                             viewModel.onIntent(LibraryIntent.ToggleFavorite(trackId, isFav))
@@ -431,6 +437,7 @@ fun LibraryScreen(
                         emptyMessage = if (uiState.searchQuery.isEmpty()) "Type to search..." else "No matching tracks found",
                         currentTrackId = playerState.currentTrack?.id,
                         isPlaying = playerState.isPlaying,
+                        sortOrder = uiState.sortOrder,
                         onTrackSelected = onTrackSelected,
                         onToggleFavorite = { trackId, isFav ->
                             viewModel.onIntent(LibraryIntent.ToggleFavorite(trackId, isFav))
@@ -485,6 +492,7 @@ fun LibraryScreen(
                         emptyMessage = "No audio tracks found.\nTap refresh to scan storage.",
                         currentTrackId = playerState.currentTrack?.id,
                         isPlaying = playerState.isPlaying,
+                        sortOrder = uiState.sortOrder,
                         onTrackSelected = onTrackSelected,
                         onToggleFavorite = { trackId, isFav ->
                             viewModel.onIntent(LibraryIntent.ToggleFavorite(trackId, isFav))
@@ -514,6 +522,7 @@ fun LibraryScreen(
                         emptyMessage = "No favorite tracks yet.\nTap star on any track to add.",
                         currentTrackId = playerState.currentTrack?.id,
                         isPlaying = playerState.isPlaying,
+                        sortOrder = uiState.sortOrder,
                         onTrackSelected = onTrackSelected,
                         onToggleFavorite = { trackId, isFav ->
                             viewModel.onIntent(LibraryIntent.ToggleFavorite(trackId, isFav))
@@ -649,6 +658,7 @@ private fun TrackListView(
     emptyMessage: String,
     currentTrackId: Long? = null,
     isPlaying: Boolean = false,
+    sortOrder: TrackSortOrder = TrackSortOrder.TITLE_ASC,
     onTrackSelected: (AudioTrack, List<AudioTrack>) -> Unit,
     onToggleFavorite: (Long, Boolean) -> Unit,
     onMoreOptions: (AudioTrack) -> Unit
@@ -656,36 +666,65 @@ private fun TrackListView(
     if (tracks.isEmpty()) {
         EmptyStateView(message = emptyMessage)
     } else {
-        LazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(bottom = 88.dp)
-        ) {
-            item {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 8.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Text(
-                        text = "${tracks.size} TRACKS",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = VoxTheme.colors.subtleText
+        val lazyListState = rememberLazyListState()
+        val coroutineScope = rememberCoroutineScope()
+
+        Box(modifier = Modifier.fillMaxSize()) {
+            LazyColumn(
+                state = lazyListState,
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(bottom = 88.dp)
+            ) {
+                item {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 8.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(
+                            text = "${tracks.size} TRACKS",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = VoxTheme.colors.subtleText
+                        )
+                    }
+                    HairlineDivider()
+                }
+                items(tracks, key = { it.id }) { track ->
+                    val isCurrent = track.id == currentTrackId
+                    TrackListItem(
+                        track = track,
+                        isCurrentTrack = isCurrent,
+                        isPlaying = isCurrent && isPlaying,
+                        onClick = { onTrackSelected(track, tracks) },
+                        onToggleFavorite = { isFav -> onToggleFavorite(track.id, isFav) },
+                        onMoreOptions = { onMoreOptions(track) }
                     )
                 }
-                HairlineDivider()
             }
-            items(tracks, key = { it.id }) { track ->
-                val isCurrent = track.id == currentTrackId
-                TrackListItem(
-                    track = track,
-                    isCurrentTrack = isCurrent,
-                    isPlaying = isCurrent && isPlaying,
-                    onClick = { onTrackSelected(track, tracks) },
-                    onToggleFavorite = { isFav -> onToggleFavorite(track.id, isFav) },
-                    onMoreOptions = { onMoreOptions(track) }
-                )
-            }
+
+            // Alphabet Fast Scroll Indexer Bar (Shows on A-Z and Z-A sorting)
+            AlphabetIndexerBar(
+                sortOrder = sortOrder,
+                onLetterSelected = { char ->
+                    val firstIndex = if (char == '#') {
+                        tracks.indexOfFirst { track ->
+                            val first = track.title.firstOrNull()
+                            first == null || !first.isLetter()
+                        }
+                    } else {
+                        tracks.indexOfFirst { track ->
+                            track.title.startsWith(char, ignoreCase = true)
+                        }
+                    }
+                    if (firstIndex != -1) {
+                        coroutineScope.launch {
+                            lazyListState.scrollToItem(firstIndex + 1) // +1 for the header item
+                        }
+                    }
+                },
+                modifier = Modifier.align(Alignment.CenterEnd)
+            )
         }
     }
 }

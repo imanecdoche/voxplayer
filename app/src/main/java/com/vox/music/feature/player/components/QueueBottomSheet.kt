@@ -7,6 +7,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
+import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -20,6 +21,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
@@ -47,6 +49,7 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.TextStyle
@@ -55,6 +58,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import com.composables.icons.lucide.ArrowUpDown
 import com.composables.icons.lucide.ChevronDown
 import com.composables.icons.lucide.GripVertical
@@ -96,9 +101,52 @@ fun QueueBottomSheet(
     // Local state list to enable real-time fluid reordering animation during drag
     val localQueue = remember { mutableStateListOf<AudioTrack>() }
 
+    val lazyListState = rememberLazyListState()
+
     var draggingIndex by remember { mutableStateOf<Int?>(null) }
     var initialDragIndex by remember { mutableStateOf<Int?>(null) }
     var dragOffsetY by remember { mutableFloatStateOf(0f) }
+    var listHeightPx by remember { mutableFloatStateOf(0f) }
+    var autoScrollSpeed by remember { mutableFloatStateOf(0f) }
+
+    val edgeThresholdPx = with(density) { 60.dp.toPx() }
+    val itemHeightPx = with(density) { 58.dp.toPx() }
+
+    // Edge Auto-Scrolling continuous loop when dragging near top/bottom boundaries
+    LaunchedEffect(draggingIndex, autoScrollSpeed) {
+        if (draggingIndex != null && autoScrollSpeed != 0f) {
+            while (isActive && draggingIndex != null && autoScrollSpeed != 0f) {
+                lazyListState.scrollBy(autoScrollSpeed)
+
+                val currIdx = draggingIndex ?: break
+                val threshold = itemHeightPx * 0.5f
+
+                if (autoScrollSpeed > 0f && currIdx < localQueue.size - 1) {
+                    dragOffsetY += (autoScrollSpeed * 0.5f)
+                    if (dragOffsetY > threshold) {
+                        val nextIdx = currIdx + 1
+                        val item = localQueue.removeAt(currIdx)
+                        localQueue.add(nextIdx, item)
+                        draggingIndex = nextIdx
+                        dragOffsetY -= itemHeightPx
+                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                    }
+                } else if (autoScrollSpeed < 0f && currIdx > 0) {
+                    dragOffsetY += (autoScrollSpeed * 0.5f)
+                    if (dragOffsetY < -threshold) {
+                        val prevIdx = currIdx - 1
+                        val item = localQueue.removeAt(currIdx)
+                        localQueue.add(prevIdx, item)
+                        draggingIndex = prevIdx
+                        dragOffsetY += itemHeightPx
+                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                    }
+                }
+
+                delay(16L) // ~60fps
+            }
+        }
+    }
 
     // Synchronize localQueue with incoming queue when not actively dragging
     LaunchedEffect(queue) {
@@ -107,8 +155,6 @@ fun QueueBottomSheet(
             localQueue.addAll(queue)
         }
     }
-
-    val itemHeightPx = with(density) { 58.dp.toPx() }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -205,9 +251,14 @@ fun QueueBottomSheet(
                 }
             } else {
                 LazyColumn(
+                    state = lazyListState,
+                    userScrollEnabled = draggingIndex == null,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .weight(1f),
+                        .weight(1f)
+                        .onGloballyPositioned { coordinates ->
+                            listHeightPx = coordinates.size.height.toFloat()
+                        },
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     itemsIndexed(
@@ -262,12 +313,31 @@ fun QueueBottomSheet(
                                             draggingIndex = index
                                             initialDragIndex = index
                                             dragOffsetY = 0f
+                                            autoScrollSpeed = 0f
                                             haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                                         },
                                         onDrag = { change, dragAmount ->
                                             change.consume()
                                             dragOffsetY += dragAmount.y
                                             val currIdx = draggingIndex ?: return@detectDragGesturesAfterLongPress
+
+                                            // Calculate current dragged item center position within the LazyColumn viewport
+                                            val visibleItem = lazyListState.layoutInfo.visibleItemsInfo.find { it.index == currIdx }
+                                            val itemTopInList = visibleItem?.offset?.toFloat() ?: (currIdx * itemHeightPx)
+                                            val currentItemCenterY = itemTopInList + dragOffsetY + (itemHeightPx / 2f)
+
+                                            // Edge Auto-Scroll threshold calculation
+                                            if (currentItemCenterY < edgeThresholdPx && listHeightPx > 0f) {
+                                                val ratio = (1f - (currentItemCenterY / edgeThresholdPx).coerceIn(0f, 1f))
+                                                autoScrollSpeed = -((ratio * with(density) { 16.dp.toPx() }).coerceAtLeast(with(density) { 3.dp.toPx() }))
+                                            } else if (currentItemCenterY > (listHeightPx - edgeThresholdPx) && listHeightPx > 0f) {
+                                                val distFromBottom = listHeightPx - currentItemCenterY
+                                                val ratio = (1f - (distFromBottom / edgeThresholdPx).coerceIn(0f, 1f))
+                                                autoScrollSpeed = (ratio * with(density) { 16.dp.toPx() }).coerceAtLeast(with(density) { 3.dp.toPx() })
+                                            } else {
+                                                autoScrollSpeed = 0f
+                                            }
+
                                             val threshold = itemHeightPx * 0.5f
 
                                             if (dragOffsetY > threshold && currIdx < localQueue.size - 1) {
@@ -287,6 +357,7 @@ fun QueueBottomSheet(
                                             }
                                         },
                                         onDragEnd = {
+                                            autoScrollSpeed = 0f
                                             val start = initialDragIndex
                                             val end = draggingIndex
                                             draggingIndex = null
@@ -297,6 +368,7 @@ fun QueueBottomSheet(
                                             }
                                         },
                                         onDragCancel = {
+                                            autoScrollSpeed = 0f
                                             draggingIndex = null
                                             initialDragIndex = null
                                             dragOffsetY = 0f

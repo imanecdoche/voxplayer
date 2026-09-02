@@ -24,6 +24,10 @@
     <!-- Battery Optimization Exemption Request -->
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
 
+    <!-- Bluetooth Permissions for Audio Routing & Battery Info -->
+    <uses-permission android:name="android.permission.BLUETOOTH" android:maxSdkVersion="30" />
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+
     <application
         android:name=".MusicApplication"
         android:allowBackup="true"

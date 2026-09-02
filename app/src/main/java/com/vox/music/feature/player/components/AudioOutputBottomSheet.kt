@@ -33,6 +33,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.composables.icons.lucide.Activity
+import com.composables.icons.lucide.Battery
 import com.composables.icons.lucide.Bluetooth
 import com.composables.icons.lucide.Check
 import com.composables.icons.lucide.Lucide
@@ -123,12 +124,48 @@ fun AudioOutputBottomSheet(
                     Spacer(modifier = Modifier.width(14.dp))
 
                     Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = routeState.bluetoothDeviceName.ifBlank { "Bluetooth Audio Device" },
-                            style = MaterialTheme.typography.bodyLarge,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onBackground
-                        )
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = routeState.bluetoothDeviceName.ifBlank { "Bluetooth Audio Device" },
+                                style = MaterialTheme.typography.bodyLarge,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onBackground,
+                                modifier = Modifier.weight(1f, fill = false)
+                            )
+
+                            // Battery Percentage Indicator (Only shown if valid battery level reported 0..100)
+                            if (routeState.bluetoothBatteryLevel in 0..100) {
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(6.dp))
+                                        .background(MaterialTheme.colorScheme.background)
+                                        .border(0.5.dp, VoxTheme.colors.divider, RoundedCornerShape(6.dp))
+                                        .padding(horizontal = 6.dp, vertical = 2.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Lucide.Battery,
+                                        contentDescription = "Battery Level",
+                                        tint = if (routeState.bluetoothBatteryLevel <= 20) Color(0xFFFF453A) else MaterialTheme.colorScheme.onBackground,
+                                        modifier = Modifier.size(13.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text(
+                                        text = "${routeState.bluetoothBatteryLevel}%",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        fontWeight = FontWeight.Bold,
+                                        color = if (routeState.bluetoothBatteryLevel <= 20) Color(0xFFFF453A) else MaterialTheme.colorScheme.onBackground,
+                                        fontSize = 11.sp
+                                    )
+                                }
+                            }
+                        }
+
                         Spacer(modifier = Modifier.height(2.dp))
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Box(
