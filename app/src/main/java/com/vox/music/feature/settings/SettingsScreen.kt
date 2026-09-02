@@ -34,8 +34,12 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import android.content.Intent
 import com.composables.icons.lucide.ArrowLeft
+import com.composables.icons.lucide.ChevronRight
 import com.composables.icons.lucide.Lucide
+import com.composables.icons.lucide.Sliders
+import com.vox.music.feature.customization.adcuzActivity
 import com.vox.music.ui.components.HairlineDivider
 import com.vox.music.ui.components.VoxSlider
 import com.vox.music.ui.theme.VoxTheme
@@ -236,6 +240,56 @@ fun SettingsScreen(
             )
 
             Spacer(modifier = Modifier.height(12.dp))
+
+            // Advanced Customization & Theme Studio Entry
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable {
+                        val intent = Intent(context, adcuzActivity::class.java)
+                        context.startActivity(intent)
+                    }
+                    .padding(vertical = 10.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(
+                    modifier = Modifier.weight(1f).padding(end = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Lucide.Sliders,
+                        contentDescription = "Theme Studio",
+                        tint = MaterialTheme.colorScheme.onBackground,
+                        modifier = Modifier.size(24.dp)
+                    )
+                    Spacer(modifier = Modifier.width(14.dp))
+                    Column {
+                        Text(
+                            text = "Theme Studio & Layout Customizer",
+                            style = MaterialTheme.typography.bodyLarge,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onBackground
+                        )
+                        Text(
+                            text = "Kustomisasi palet warna, dimensi, offset, background kustom, dan icon pack.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = VoxTheme.colors.subtleText
+                        )
+                    }
+                }
+
+                Icon(
+                    imageVector = Lucide.ChevronRight,
+                    contentDescription = "Open",
+                    tint = VoxTheme.colors.subtleText,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+            HairlineDivider()
+            Spacer(modifier = Modifier.height(8.dp))
 
             // Dynamic Ambient Background Toggle
             Row(

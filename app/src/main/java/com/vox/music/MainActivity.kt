@@ -25,6 +25,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.vox.music.core.theme.repository.ThemeRepository
 import com.vox.music.feature.library.LibraryScreen
 import com.vox.music.feature.library.LibraryViewModel
 import com.vox.music.feature.player.PlayerScreen
@@ -32,16 +33,23 @@ import com.vox.music.feature.player.PlayerViewModel
 import com.vox.music.feature.player.components.MiniPlayerBar
 import com.vox.music.ui.theme.VoxTheme
 import dagger.hilt.android.AndroidEntryPoint
+import javax.inject.Inject
 
 import androidx.compose.foundation.layout.navigationBarsPadding
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
+
+    @Inject
+    lateinit var themeRepository: ThemeRepository
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
-            VoxTheme {
+            val themeConfig by themeRepository.themeStateFlow.collectAsStateWithLifecycle()
+
+            VoxTheme(themeConfig = themeConfig) {
                 Surface(
                     modifier = Modifier
                         .fillMaxSize()

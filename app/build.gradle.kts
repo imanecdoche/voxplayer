@@ -126,6 +126,13 @@ dependencies {
     // Lucide Icons for Compose
     implementation(libs.icons.lucide)
 
+    // Jetpack Glance AppWidget
+    implementation(libs.androidx.glance.appwidget)
+    implementation(libs.androidx.glance.material3)
+
+    // Gson JSON Serialization
+    implementation(libs.google.gson)
+
     // Testing
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)

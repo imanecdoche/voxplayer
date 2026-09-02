@@ -58,20 +58,38 @@ fun HairlineDivider(
 }
 
 /**
- * Scalable Logomark Vector for Vox.
+ * Scalable Logomark Vector for Vox with dynamic custom header icon support.
  */
 @Composable
 fun VoxLogomark(
     modifier: Modifier = Modifier,
-    tint: Color = MaterialTheme.colorScheme.onBackground,
-    size: Dp = 24.dp
+    tint: Color = VoxTheme.themeConfig.colors.appIconTint,
+    size: Dp = VoxTheme.themeConfig.dimensions.appHeaderIconSizeDp.dp
 ) {
-    Icon(
-        painter = painterResource(id = R.drawable.vox_main_logomark),
-        contentDescription = "Vox Logomark",
-        modifier = modifier.size(size),
-        tint = tint
-    )
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val customIconRelPath = VoxTheme.themeConfig.assets.customHeaderIconRelativePath
+    val customFile = remember(customIconRelPath) {
+        if (!customIconRelPath.isNullOrBlank()) {
+            val f = java.io.File(context.filesDir, "theme_engine/$customIconRelPath")
+            if (f.exists()) f else null
+        } else null
+    }
+
+    if (customFile != null && customFile.exists()) {
+        AsyncImage(
+            model = customFile,
+            contentDescription = "Custom Vox Logomark",
+            modifier = modifier.size(size),
+            colorFilter = if (tint != Color.Unspecified) ColorFilter.tint(tint) else null
+        )
+    } else {
+        Icon(
+            painter = painterResource(id = R.drawable.vox_main_logomark),
+            contentDescription = "Vox Logomark",
+            modifier = modifier.size(size),
+            tint = tint
+        )
+    }
 }
 
 /**

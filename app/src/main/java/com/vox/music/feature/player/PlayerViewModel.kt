@@ -5,6 +5,8 @@ import androidx.lifecycle.viewModelScope
 import com.vox.music.core.audio.chords.ChordTracker
 import com.vox.music.core.audio.controller.MusicPlayerController
 import com.vox.music.core.audio.model.PlayerState
+import com.vox.music.core.audio.routing.AudioRouteManager
+import com.vox.music.core.audio.routing.AudioRouteState
 import com.vox.music.core.lyrics.LrcParser
 import com.vox.music.core.lyrics.model.LyricsData
 import com.vox.music.core.model.AudioTrack
@@ -27,6 +29,7 @@ class PlayerViewModel @Inject constructor(
     private val playerController: MusicPlayerController,
     private val audioRepository: AudioRepository,
     private val audioAnalysisRepository: AudioAnalysisRepository,
+    private val audioRouteManager: AudioRouteManager,
     private val lrcParser: LrcParser,
     private val chordTracker: ChordTracker
 ) : ViewModel() {
@@ -36,6 +39,7 @@ class PlayerViewModel @Inject constructor(
     val currentQueue: StateFlow<List<AudioTrack>> = playerController.currentQueue
     val sleepTimerRemainingMs: StateFlow<Long?> = playerController.sleepTimerRemainingMs
     val isSleepTimerEndOfTrack: StateFlow<Boolean> = playerController.isSleepTimerEndOfTrack
+    val audioRouteState: StateFlow<AudioRouteState> = audioRouteManager.routeState
 
     val allTracks: StateFlow<List<AudioTrack>> = audioRepository.getAllTracks()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
@@ -261,5 +265,17 @@ class PlayerViewModel @Inject constructor(
                 audioRepository.addTrackToPlaylist(id, initialTrackId)
             }
         }
+    }
+
+    fun routeToSpeaker() {
+        audioRouteManager.routeToSpeaker()
+    }
+
+    fun routeToBluetooth() {
+        audioRouteManager.routeToBluetooth()
+    }
+
+    fun toggleDolbyAtmos(enabled: Boolean) {
+        audioRouteManager.toggleDolbyAtmos(enabled)
     }
 }

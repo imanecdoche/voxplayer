@@ -1,3 +1,4 @@
 <resources>
-    <string name="app_name">Vox</string>
+    <string name="app_name">Vox Player</string>
+    <string name="widget_description">Vox Player Music Controller</string>
 </resources>

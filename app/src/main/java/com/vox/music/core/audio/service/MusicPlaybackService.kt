@@ -36,6 +36,9 @@ import com.vox.music.feature.lockscreen.LockscreenPlayerActivity
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
 
+import androidx.media3.session.DefaultMediaNotificationProvider
+import androidx.media3.session.MediaNotification
+
 @OptIn(UnstableApi::class)
 @AndroidEntryPoint
 class MusicPlaybackService : MediaSessionService() {
@@ -85,6 +88,17 @@ class MusicPlaybackService : MediaSessionService() {
         const val ACTION_SET_VIRTUALIZER = "com.vox.music.ACTION_SET_VIRTUALIZER"
         const val ACTION_SET_LOUDNESS = "com.vox.music.ACTION_SET_LOUDNESS"
 
+        const val ACTION_TOGGLE_SHUFFLE = "com.vox.music.ACTION_TOGGLE_SHUFFLE"
+        const val ACTION_TOGGLE_REPEAT = "com.vox.music.ACTION_TOGGLE_REPEAT"
+
+        const val ACTION_WIDGET_TOGGLE_PLAY = "com.vox.music.ACTION_WIDGET_TOGGLE_PLAY"
+        const val ACTION_WIDGET_SKIP_NEXT = "com.vox.music.ACTION_WIDGET_SKIP_NEXT"
+        const val ACTION_WIDGET_SKIP_PREVIOUS = "com.vox.music.ACTION_WIDGET_SKIP_PREVIOUS"
+        const val ACTION_WIDGET_TOGGLE_SHUFFLE = "com.vox.music.ACTION_WIDGET_TOGGLE_SHUFFLE"
+        const val ACTION_WIDGET_TOGGLE_REPEAT = "com.vox.music.ACTION_WIDGET_TOGGLE_REPEAT"
+        const val ACTION_WIDGET_PLAY_INDEX = "com.vox.music.ACTION_WIDGET_PLAY_INDEX"
+        const val EXTRA_WIDGET_INDEX = "extra_widget_index"
+
         const val EXTRA_SPEED = "extra_speed"
         const val EXTRA_PITCH_SEMITONES = "extra_pitch_semitones"
         const val EXTRA_POSITION_MS = "extra_position_ms"
@@ -97,8 +111,64 @@ class MusicPlaybackService : MediaSessionService() {
         const val EXTRA_EQ_GAIN_MB = "extra_eq_gain_mb"
     }
 
+    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        when (intent?.action) {
+            ACTION_WIDGET_TOGGLE_PLAY -> {
+                player?.let { p ->
+                    if (p.isPlaying) p.pause() else p.play()
+                }
+            }
+            ACTION_WIDGET_SKIP_NEXT -> {
+                player?.let { p ->
+                    if (p.hasNextMediaItem()) p.seekToNextMediaItem() else p.seekToDefaultPosition(0)
+                }
+            }
+            ACTION_WIDGET_SKIP_PREVIOUS -> {
+                player?.let { p ->
+                    val pos = p.currentPosition.coerceAtLeast(0L)
+                    if (pos <= 3000L && p.hasPreviousMediaItem()) {
+                        p.seekToPreviousMediaItem()
+                    } else {
+                        p.seekTo(0L)
+                    }
+                }
+            }
+            ACTION_WIDGET_TOGGLE_SHUFFLE -> {
+                player?.let { p ->
+                    p.shuffleModeEnabled = !p.shuffleModeEnabled
+                    updateMediaSessionCustomLayout()
+                }
+            }
+            ACTION_WIDGET_TOGGLE_REPEAT -> {
+                player?.let { p ->
+                    p.repeatMode = when (p.repeatMode) {
+                        Player.REPEAT_MODE_OFF -> Player.REPEAT_MODE_ALL
+                        Player.REPEAT_MODE_ALL -> Player.REPEAT_MODE_ONE
+                        Player.REPEAT_MODE_ONE -> Player.REPEAT_MODE_OFF
+                        else -> Player.REPEAT_MODE_OFF
+                    }
+                    updateMediaSessionCustomLayout()
+                }
+            }
+            ACTION_WIDGET_PLAY_INDEX -> {
+                val index = intent.getIntExtra(EXTRA_WIDGET_INDEX, -1)
+                if (index >= 0) {
+                    player?.let { p ->
+                        if (index < p.mediaItemCount) {
+                            p.seekToDefaultPosition(index)
+                            p.play()
+                        }
+                    }
+                }
+            }
+        }
+        syncWidgetState()
+        return super.onStartCommand(intent, flags, startId)
+    }
+
     override fun onCreate() {
         super.onCreate()
+        setMediaNotificationProvider(VoxMediaNotificationProvider(this))
         initializePlayer()
         registerScreenReceiver()
     }
@@ -174,6 +244,29 @@ class MusicPlaybackService : MediaSessionService() {
                         equalizerController.attachToSession(sessionId)
                     }
                 }
+                syncWidgetState()
+            }
+
+            override fun onIsPlayingChanged(isPlaying: Boolean) {
+                syncWidgetState()
+            }
+
+            override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
+                syncWidgetState()
+            }
+
+            override fun onTimelineChanged(timeline: androidx.media3.common.Timeline, reason: Int) {
+                syncWidgetState()
+            }
+
+            override fun onRepeatModeChanged(repeatMode: Int) {
+                updateMediaSessionCustomLayout()
+                syncWidgetState()
+            }
+
+            override fun onShuffleModeEnabledChanged(shuffleModeEnabled: Boolean) {
+                updateMediaSessionCustomLayout()
+                syncWidgetState()
             }
         })
 
@@ -195,11 +288,117 @@ class MusicPlaybackService : MediaSessionService() {
             .setCallback(CustomMediaSessionCallback())
             .build()
 
+        updateMediaSessionCustomLayout()
+
         // Start A-B loop check ticker
         handler.post(abLoopRunnable)
     }
 
+    private fun updateMediaSessionCustomLayout() {
+        val p = player ?: return
+        val session = mediaSession ?: return
+        val shuffleButton = CommandButton.Builder()
+            .setDisplayName(if (p.shuffleModeEnabled) "Shuffle On" else "Shuffle Off")
+            .setIconResId(com.vox.music.R.drawable.ic_widget_shuffle)
+            .setSessionCommand(SessionCommand(ACTION_TOGGLE_SHUFFLE, Bundle.EMPTY))
+            .setEnabled(true)
+            .build()
+
+        val repeatIcon = if (p.repeatMode == Player.REPEAT_MODE_ONE) {
+            com.vox.music.R.drawable.ic_widget_repeat_1
+        } else {
+            com.vox.music.R.drawable.ic_widget_repeat
+        }
+        val repeatTitle = when (p.repeatMode) {
+            Player.REPEAT_MODE_ONE -> "Repeat One"
+            Player.REPEAT_MODE_ALL -> "Repeat All"
+            else -> "Repeat Off"
+        }
+        val repeatButton = CommandButton.Builder()
+            .setDisplayName(repeatTitle)
+            .setIconResId(repeatIcon)
+            .setSessionCommand(SessionCommand(ACTION_TOGGLE_REPEAT, Bundle.EMPTY))
+            .setEnabled(true)
+            .build()
+
+        session.setCustomLayout(listOf(shuffleButton, repeatButton))
+    }
+
+    private fun syncWidgetState() {
+        val p = player ?: return
+        val currentItem = p.currentMediaItem
+        val title = currentItem?.mediaMetadata?.title?.toString() ?: "Vox Player"
+        val artist = currentItem?.mediaMetadata?.artist?.toString() ?: "No track playing"
+        val album = currentItem?.mediaMetadata?.albumTitle?.toString() ?: ""
+        val filePath = currentItem?.mediaMetadata?.artworkUri?.path ?: (currentItem?.localConfiguration?.uri?.path ?: "")
+        val isPlaying = p.isPlaying
+        val isShuffle = p.shuffleModeEnabled
+        val loopMode = when (p.repeatMode) {
+            Player.REPEAT_MODE_ONE -> "ONE"
+            Player.REPEAT_MODE_ALL -> "ALL"
+            else -> "NONE"
+        }
+
+        val queueItems = mutableListOf<com.vox.music.feature.widget.WidgetTrackItem>()
+        val total = p.mediaItemCount
+        val currentIndex = p.currentMediaItemIndex
+        for (i in (currentIndex + 1) until (currentIndex + 4).coerceAtMost(total)) {
+            val item = p.getMediaItemAt(i)
+            queueItems.add(
+                com.vox.music.feature.widget.WidgetTrackItem(
+                    title = item.mediaMetadata.title?.toString() ?: "Track $i",
+                    artist = item.mediaMetadata.artist?.toString() ?: "Unknown",
+                    filePath = item.mediaMetadata.artworkUri?.path ?: (item.localConfiguration?.uri?.path ?: ""),
+                    index = i
+                )
+            )
+        }
+
+        com.vox.music.feature.widget.VoxWidgetHelper.saveWidgetState(
+            context = this,
+            title = title,
+            artist = artist,
+            album = album,
+            filePath = filePath,
+            isPlaying = isPlaying,
+            isShuffle = isShuffle,
+            loopMode = loopMode,
+            queue = queueItems
+        )
+    }
+
     private inner class CustomMediaSessionCallback : MediaSession.Callback {
+        override fun onConnect(
+            session: MediaSession,
+            controller: MediaSession.ControllerInfo
+        ): MediaSession.ConnectionResult {
+            val sessionCommands = MediaSession.ConnectionResult.DEFAULT_SESSION_COMMANDS.buildUpon()
+                .add(SessionCommand(ACTION_SET_SPEED, Bundle.EMPTY))
+                .add(SessionCommand(ACTION_SET_PITCH, Bundle.EMPTY))
+                .add(SessionCommand(ACTION_SET_POINT_A, Bundle.EMPTY))
+                .add(SessionCommand(ACTION_SET_POINT_B, Bundle.EMPTY))
+                .add(SessionCommand(ACTION_CLEAR_AB_LOOP, Bundle.EMPTY))
+                .add(SessionCommand(ACTION_SET_EQ_ENABLED, Bundle.EMPTY))
+                .add(SessionCommand(ACTION_SET_EQ_BAND, Bundle.EMPTY))
+                .add(SessionCommand(ACTION_APPLY_EQ_PRESET, Bundle.EMPTY))
+                .add(SessionCommand(ACTION_SET_BASS_BOOST, Bundle.EMPTY))
+                .add(SessionCommand(ACTION_SET_VIRTUALIZER, Bundle.EMPTY))
+                .add(SessionCommand(ACTION_SET_LOUDNESS, Bundle.EMPTY))
+                .add(SessionCommand(ACTION_TOGGLE_SHUFFLE, Bundle.EMPTY))
+                .add(SessionCommand(ACTION_TOGGLE_REPEAT, Bundle.EMPTY))
+                .build()
+
+            val playerCommands = MediaSession.ConnectionResult.DEFAULT_PLAYER_COMMANDS.buildUpon()
+                .add(Player.COMMAND_SET_SHUFFLE_MODE)
+                .add(Player.COMMAND_SET_REPEAT_MODE)
+                .build()
+
+            return MediaSession.ConnectionResult.accept(
+                sessionCommands,
+                playerCommands
+            )
+        }
+
         override fun onCustomCommand(
             session: MediaSession,
             controller: MediaSession.ControllerInfo,
@@ -207,6 +406,27 @@ class MusicPlaybackService : MediaSessionService() {
             args: Bundle
         ): ListenableFuture<SessionResult> {
             when (customCommand.customAction) {
+                ACTION_TOGGLE_SHUFFLE -> {
+                    player?.let { p ->
+                        p.shuffleModeEnabled = !p.shuffleModeEnabled
+                    }
+                    updateMediaSessionCustomLayout()
+                    return Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
+                }
+
+                ACTION_TOGGLE_REPEAT -> {
+                    player?.let { p ->
+                        p.repeatMode = when (p.repeatMode) {
+                            Player.REPEAT_MODE_OFF -> Player.REPEAT_MODE_ALL
+                            Player.REPEAT_MODE_ALL -> Player.REPEAT_MODE_ONE
+                            Player.REPEAT_MODE_ONE -> Player.REPEAT_MODE_OFF
+                            else -> Player.REPEAT_MODE_OFF
+                        }
+                    }
+                    updateMediaSessionCustomLayout()
+                    return Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
+                }
+
                 ACTION_SET_SPEED -> {
                     val speed = args.getFloat(EXTRA_SPEED, 1.0f)
                     sonicHolder.setSpeed(speed)

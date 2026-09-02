@@ -57,6 +57,13 @@
             android:launchMode="singleTop"
             android:theme="@style/Theme.Vox" />
 
+        <!-- Advanced Customization & Theme Studio Activity -->
+        <activity
+            android:name=".feature.customization.adcuzActivity"
+            android:exported="false"
+            android:label="Theme Studio"
+            android:theme="@style/Theme.Vox" />
+
         <!-- MediaSessionService for persistent background playback -->
         <service
             android:name=".core.audio.service.MusicPlaybackService"
@@ -67,6 +74,19 @@
                 <action android:name="android.media.browse.MediaBrowserService" />
             </intent-filter>
         </service>
+
+        <!-- Responsive Home Screen Glance Widget -->
+        <receiver
+            android:name=".feature.widget.VoxWidgetReceiver"
+            android:exported="true"
+            android:label="@string/app_name">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/vox_widget_info" />
+        </receiver>
 
     </application>
 

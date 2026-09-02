@@ -28,14 +28,14 @@ import com.vox.music.ui.theme.VoxTheme
 fun VoxSlider(
     value: Float,
     onValueChange: (Float) -> Unit,
-    onValueChangeFinished: () -> Unit,
     modifier: Modifier = Modifier,
+    onValueChangeFinished: () -> Unit = {},
     valueRange: ClosedFloatingPointRange<Float> = 0f..1f,
-    trackHeight: Dp = 2.dp,
-    thumbRadius: Dp = 6.dp,
-    activeTrackColor: Color = MaterialTheme.colorScheme.onBackground,
-    inactiveTrackColor: Color = VoxTheme.colors.divider,
-    thumbColor: Color = MaterialTheme.colorScheme.onBackground
+    trackHeight: Dp = VoxTheme.themeConfig.dimensions.sliderThicknessDp.dp,
+    thumbRadius: Dp = (VoxTheme.themeConfig.dimensions.sliderThumbDiameterDp / 2f).dp,
+    activeTrackColor: Color = VoxTheme.themeConfig.colors.sliderTrackActive,
+    inactiveTrackColor: Color = VoxTheme.themeConfig.colors.sliderTrackInactive,
+    thumbColor: Color = VoxTheme.themeConfig.colors.sliderThumb
 ) {
     var isDragging by remember { mutableStateOf(false) }
     var dragFraction by remember { mutableFloatStateOf(0f) }

@@ -1,8 +1,12 @@
 package com.vox.music.feature.player.components
 
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -18,12 +22,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import com.composables.icons.lucide.GripVertical
-import com.composables.icons.lucide.Lucide
-import com.composables.icons.lucide.Music
-import com.composables.icons.lucide.Plus
-import com.composables.icons.lucide.Trash2
-import com.composables.icons.lucide.X
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -34,28 +33,41 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.zIndex
+import com.composables.icons.lucide.ArrowUpDown
+import com.composables.icons.lucide.ChevronDown
+import com.composables.icons.lucide.GripVertical
+import com.composables.icons.lucide.Lucide
+import com.composables.icons.lucide.Music
+import com.composables.icons.lucide.Plus
+import com.composables.icons.lucide.Search
+import com.composables.icons.lucide.Trash2
+import com.composables.icons.lucide.X
 import com.vox.music.core.model.AudioTrack
 import com.vox.music.ui.components.HairlineDivider
 import com.vox.music.ui.components.VoxCoverArt
 import com.vox.music.ui.theme.VoxTheme
-
-import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.ui.graphics.SolidColor
-import androidx.compose.ui.text.TextStyle
-import com.composables.icons.lucide.ArrowUpDown
-import com.composables.icons.lucide.ChevronDown
-import com.composables.icons.lucide.Search
 
 private enum class QueuePickerSort {
     A_TO_Z, DATE_ADDED, DURATION
@@ -77,6 +89,26 @@ fun QueueBottomSheet(
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var showAddTrackPicker by remember { mutableStateOf(false) }
+
+    val haptic = LocalHapticFeedback.current
+    val density = LocalDensity.current
+
+    // Local state list to enable real-time fluid reordering animation during drag
+    val localQueue = remember { mutableStateListOf<AudioTrack>() }
+
+    var draggingIndex by remember { mutableStateOf<Int?>(null) }
+    var initialDragIndex by remember { mutableStateOf<Int?>(null) }
+    var dragOffsetY by remember { mutableFloatStateOf(0f) }
+
+    // Synchronize localQueue with incoming queue when not actively dragging
+    LaunchedEffect(queue) {
+        if (draggingIndex == null) {
+            localQueue.clear()
+            localQueue.addAll(queue)
+        }
+    }
+
+    val itemHeightPx = with(density) { 58.dp.toPx() }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -107,14 +139,14 @@ fun QueueBottomSheet(
                         letterSpacing = 1.sp
                     )
                     Text(
-                        text = "${queue.size} tracks in queue",
+                        text = "${localQueue.size} tracks in queue",
                         style = MaterialTheme.typography.bodySmall,
                         color = VoxTheme.colors.subtleText
                     )
                 }
 
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    if (queue.size > 1) {
+                    if (localQueue.size > 1) {
                         IconButton(onClick = onClearQueue) {
                             Icon(
                                 imageVector = Lucide.Eraser,
@@ -149,7 +181,7 @@ fun QueueBottomSheet(
             HairlineDivider()
             Spacer(modifier = Modifier.height(12.dp))
 
-            if (queue.isEmpty()) {
+            if (localQueue.isEmpty()) {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -179,30 +211,120 @@ fun QueueBottomSheet(
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     itemsIndexed(
-                        items = queue,
-                        key = { index, track -> "${track.id}_$index" }
+                        items = localQueue,
+                        key = { _, track -> track.id }
                     ) { index, track ->
                         val isCurrent = track.id == currentTrackId
+                        val isDraggingThis = draggingIndex == index
+
+                        val scale by animateFloatAsState(
+                            targetValue = if (isDraggingThis) 1.03f else 1.0f,
+                            animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
+                            label = "dragScale"
+                        )
 
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
+                                .animateItem()
+                                .zIndex(if (isDraggingThis) 2f else 0f)
+                                .graphicsLayer {
+                                    translationY = if (isDraggingThis) dragOffsetY else 0f
+                                    scaleX = scale
+                                    scaleY = scale
+                                    shadowElevation = if (isDraggingThis) 16f else 0f
+                                }
                                 .clip(RoundedCornerShape(8.dp))
                                 .background(
-                                    if (isCurrent) MaterialTheme.colorScheme.surfaceVariant
-                                    else MaterialTheme.colorScheme.background
+                                    when {
+                                        isDraggingThis -> MaterialTheme.colorScheme.surfaceVariant
+                                        isCurrent -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)
+                                        else -> MaterialTheme.colorScheme.background
+                                    }
                                 )
-                                .clickable { onTrackSelected(index) }
+                                .then(
+                                    if (isDraggingThis) {
+                                        Modifier.border(
+                                            width = 1.dp,
+                                            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.35f),
+                                            shape = RoundedCornerShape(8.dp)
+                                        )
+                                    } else Modifier
+                                )
+                                .clickable {
+                                    if (draggingIndex == null) {
+                                        onTrackSelected(index)
+                                    }
+                                }
+                                .pointerInput(index) {
+                                    detectDragGesturesAfterLongPress(
+                                        onDragStart = {
+                                            draggingIndex = index
+                                            initialDragIndex = index
+                                            dragOffsetY = 0f
+                                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                        },
+                                        onDrag = { change, dragAmount ->
+                                            change.consume()
+                                            dragOffsetY += dragAmount.y
+                                            val currIdx = draggingIndex ?: return@detectDragGesturesAfterLongPress
+                                            val threshold = itemHeightPx * 0.5f
+
+                                            if (dragOffsetY > threshold && currIdx < localQueue.size - 1) {
+                                                val nextIdx = currIdx + 1
+                                                val item = localQueue.removeAt(currIdx)
+                                                localQueue.add(nextIdx, item)
+                                                draggingIndex = nextIdx
+                                                dragOffsetY -= itemHeightPx
+                                                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                            } else if (dragOffsetY < -threshold && currIdx > 0) {
+                                                val prevIdx = currIdx - 1
+                                                val item = localQueue.removeAt(currIdx)
+                                                localQueue.add(prevIdx, item)
+                                                draggingIndex = prevIdx
+                                                dragOffsetY += itemHeightPx
+                                                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                            }
+                                        },
+                                        onDragEnd = {
+                                            val start = initialDragIndex
+                                            val end = draggingIndex
+                                            draggingIndex = null
+                                            initialDragIndex = null
+                                            dragOffsetY = 0f
+                                            if (start != null && end != null && start != end) {
+                                                onMoveTrack(start, end)
+                                            }
+                                        },
+                                        onDragCancel = {
+                                            draggingIndex = null
+                                            initialDragIndex = null
+                                            dragOffsetY = 0f
+                                            localQueue.clear()
+                                            localQueue.addAll(queue)
+                                        }
+                                    )
+                                }
                                 .padding(horizontal = 8.dp, vertical = 6.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
+                            // Drag Handle (GripVertical)
+                            Icon(
+                                imageVector = Lucide.GripVertical,
+                                contentDescription = "Hold and Drag to Reorder",
+                                tint = if (isDraggingThis) MaterialTheme.colorScheme.onBackground else VoxTheme.colors.subtleText,
+                                modifier = Modifier
+                                    .size(20.dp)
+                                    .padding(end = 4.dp)
+                            )
+
                             // Track Index / Active indicator
                             Text(
                                 text = "${index + 1}",
                                 style = MaterialTheme.typography.labelSmall,
                                 fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.Normal,
                                 color = if (isCurrent) MaterialTheme.colorScheme.onBackground else VoxTheme.colors.subtleText,
-                                modifier = Modifier.width(22.dp)
+                                modifier = Modifier.width(20.dp)
                             )
 
                             // Thumbnail
@@ -233,34 +355,6 @@ fun QueueBottomSheet(
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis
                                 )
-                            }
-
-                            // Reorder Up Button
-                            if (index > 0) {
-                                IconButton(
-                                    onClick = { onMoveTrack(index, index - 1) },
-                                    modifier = Modifier.size(28.dp)
-                                ) {
-                                    Text(
-                                        text = "▲",
-                                        style = MaterialTheme.typography.labelMedium,
-                                        color = VoxTheme.colors.subtleText
-                                    )
-                                }
-                            }
-
-                            // Reorder Down Button
-                            if (index < queue.size - 1) {
-                                IconButton(
-                                    onClick = { onMoveTrack(index, index + 1) },
-                                    modifier = Modifier.size(28.dp)
-                                ) {
-                                    Text(
-                                        text = "▼",
-                                        style = MaterialTheme.typography.labelMedium,
-                                        color = VoxTheme.colors.subtleText
-                                    )
-                                }
                             }
 
                             // Remove from Queue button

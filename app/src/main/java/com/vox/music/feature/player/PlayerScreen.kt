@@ -28,6 +28,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import com.composables.icons.lucide.Bluetooth
 import com.composables.icons.lucide.ChevronDown
 import com.composables.icons.lucide.Heart
 import com.composables.icons.lucide.Info
@@ -45,6 +46,7 @@ import com.composables.icons.lucide.SkipBack
 import com.composables.icons.lucide.SkipForward
 import com.composables.icons.lucide.Sliders
 import com.composables.icons.lucide.Tv
+import com.vox.music.feature.player.components.AudioOutputBottomSheet
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -104,6 +106,7 @@ fun PlayerScreen(
     val playlists by viewModel.playlists.collectAsStateWithLifecycle()
     val sleepTimerRemainingMs by viewModel.sleepTimerRemainingMs.collectAsStateWithLifecycle()
     val isSleepTimerEndOfTrack by viewModel.isSleepTimerEndOfTrack.collectAsStateWithLifecycle()
+    val audioRouteState by viewModel.audioRouteState.collectAsStateWithLifecycle()
 
     val track = playerState.currentTrack ?: return
 
@@ -117,6 +120,7 @@ fun PlayerScreen(
     var showQueueSheet by remember { mutableStateOf(false) }
     var showInfoSheet by remember { mutableStateOf(false) }
     var showAddToPlaylistDialog by remember { mutableStateOf(false) }
+    var showAudioOutputSheet by remember { mutableStateOf(false) }
 
     var isSeeking by remember { mutableStateOf(false) }
     var seekPosition by remember { mutableFloatStateOf(0f) }
@@ -286,8 +290,23 @@ fun PlayerScreen(
                 )
             }
 
-            // Kanan (3 tombol berderet rapi)
+            // Kanan (Dynamic Bluetooth, Lyric Mic, Track Info, Config Settings)
             Row(verticalAlignment = Alignment.CenterVertically) {
+                // 0. Dynamic Bluetooth Audio Routing Button (Shown ONLY if Bluetooth output is connected)
+                if (audioRouteState.isBluetoothConnected) {
+                    IconButton(
+                        onClick = { showAudioOutputSheet = true },
+                        modifier = Modifier.size(38.dp)
+                    ) {
+                        Icon(
+                            imageVector = Lucide.Bluetooth,
+                            contentDescription = "Audio Output & Effects",
+                            tint = if (!audioRouteState.isRoutingToSpeaker) MaterialTheme.colorScheme.onBackground else VoxTheme.colors.subtleText,
+                            modifier = Modifier.size(22.dp)
+                        )
+                    }
+                }
+
                 // 1. Tombol Lyric (Ikon Mic)
                 IconButton(
                     onClick = { showLyricsScreen = true },
@@ -604,6 +623,17 @@ fun PlayerScreen(
                 viewModel.clearQueueKeepCurrent()
             },
             onDismiss = { showQueueSheet = false }
+        )
+    }
+
+    // Audio Output & Effects Bottom Sheet
+    if (showAudioOutputSheet) {
+        AudioOutputBottomSheet(
+            routeState = audioRouteState,
+            onRouteToSpeaker = { viewModel.routeToSpeaker() },
+            onRouteToBluetooth = { viewModel.routeToBluetooth() },
+            onToggleDolbyAtmos = { viewModel.toggleDolbyAtmos(it) },
+            onDismiss = { showAudioOutputSheet = false }
         )
     }
 
